@@ -1,0 +1,6 @@
+import { ArrowRight, CalendarDays, Check } from "lucide-react";
+import AppShell from "@/components/layout/AppShell";
+
+export default function PaymentSuccessPage() {
+  return <AppShell><main className="grid min-h-[calc(100vh-82px)] place-items-center px-5 py-12"><div className="w-full max-w-lg rounded-[34px] border border-sand bg-white p-8 text-center shadow-soft sm:p-10"><span className="mx-auto grid h-20 w-20 place-items-center rounded-full bg-lime text-[#050505]"><Check size={35} strokeWidth={3} /></span><h1 className="mt-7 text-4xl font-black tracking-[-.05em] text-primary">Оплата прошла</h1><p className="mt-3 leading-7 text-gray-500">Бронирование подтверждено. Детали слота сохранены в системе PadelPoint.</p><div className="mt-7 rounded-[22px] bg-terracotta p-5 text-left text-white"><p className="flex items-center gap-2 text-sm font-black"><CalendarDays size={17} />PadelPoint · 500 MDL</p><p className="mt-2 text-xs text-white/70">Payment: succeeded · Booking: confirmed</p></div><a href="/booking" className="mt-7 inline-flex items-center gap-3 rounded-full bg-lime py-1.5 pl-6 pr-1.5 text-sm font-black text-[#050505]">Забронировать ещё <span className="grid h-10 w-10 place-items-center rounded-full bg-[#050505] text-white"><ArrowRight size={16} /></span></a></div></main></AppShell>;
+}
