@@ -11,8 +11,8 @@ export default {
       colors: {
         primary: "#111827",
         "primary-soft": "#1F2937",
-        terracotta: "#C46E4E",
-        "terracotta-dark": "#9F4F35",
+        terracotta: "#c05d34",
+        "terracotta-dark": "#974528",
         lime: "#D8FF3E",
         sand: "#E5E0D8",
         canvas: "#F8F7F3",
