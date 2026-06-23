@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Clock3, DoorOpen, Layers3, LoaderCircle, Map, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Clock3, DoorOpen, Layers3, LoaderCircle, Map, ShieldCheck, X } from "lucide-react";
 import { BOOKING_HOURS, CLUB, COURT_SEED } from "@/lib/domain/config";
 
 type SlotStatus = "available" | "booked" | "held" | "past" | "unavailable";
@@ -98,6 +98,8 @@ export default function CourtMapSection({ date }: { date: string }) {
   const [multiHour, setMultiHour] = useState(false);
   const [customer, setCustomer] = useState<CustomerDetails>(emptyCustomer);
   const [formTouched, setFormTouched] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [customerModalDismissed, setCustomerModalDismissed] = useState(false);
   const [holding, setHolding] = useState(false);
   const selectedCourt = courts.find((court) => court.id === selectedCourtId) ?? null;
   const sortedSelectedTimes = sortTimes(selectedTimes);
@@ -109,18 +111,41 @@ export default function CourtMapSection({ date }: { date: string }) {
   const remainingMdl = remainingHours * CLUB.priceMdl;
   const customerComplete = isCustomerComplete(customer);
 
+  useEffect(() => {
+    if (!selectedHourCount || multiHour || customerComplete || customerModalDismissed) return;
+    const timeout = window.setTimeout(() => setShowCustomerModal(true), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [selectedHourCount, multiHour, customerComplete, customerModalDismissed]);
+
+  useEffect(() => {
+    if (customerComplete) setShowCustomerModal(false);
+  }, [customerComplete]);
+
+  useEffect(() => {
+    if (!showCustomerModal) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showCustomerModal]);
+
   function selectCourt(court: MapCourt) {
     setSelectedCourtId(court.id);
     setSelectedTimes([]);
     setFormTouched(false);
+    setShowCustomerModal(false);
+    setCustomerModalDismissed(false);
     if (viewMode === "plan2d") window.setTimeout(() => setViewMode("schedule"), 150);
     else setViewMode("plan2d");
   }
 
-  function backToMap() { setSelectedCourtId(null); setSelectedTimes([]); setFormTouched(false); setViewMode("map3d"); }
+  function backToMap() { setSelectedCourtId(null); setSelectedTimes([]); setFormTouched(false); setShowCustomerModal(false); setCustomerModalDismissed(false); setViewMode("map3d"); }
 
   function toggleMultiHour(enabled: boolean) {
     setMultiHour(enabled);
+    setShowCustomerModal(false);
+    setCustomerModalDismissed(false);
     if (!enabled) setSelectedTimes((current) => current.slice(0, 1));
   }
 
@@ -135,10 +160,25 @@ export default function CourtMapSection({ date }: { date: string }) {
     setCustomer((current) => ({ ...current, [field]: value }));
   }
 
+  function closeCustomerModal() {
+    setShowCustomerModal(false);
+    setCustomerModalDismissed(true);
+  }
+
+  function scrollToCustomerFields() {
+    window.setTimeout(() => {
+      document.getElementById("booking-customer-fields")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 0);
+  }
+
   async function continueBooking() {
     if (!selectedCourt || !selectedTime || !selectedHourCount) return;
     setFormTouched(true);
-    if (!customerComplete) return;
+    if (!customerComplete) {
+      if (!multiHour && !customerModalDismissed) setShowCustomerModal(true);
+      else scrollToCustomerFields();
+      return;
+    }
     setHolding(true);
     await new Promise((resolve) => window.setTimeout(resolve, 500));
     const bookingId = `bk_${Date.now().toString(36)}_${selectedCourt.id}`;
@@ -191,6 +231,27 @@ export default function CourtMapSection({ date }: { date: string }) {
         <BookingSummary court={selectedCourt} times={sortedSelectedTimes} multiHour={multiHour} date={date} customer={customer} customerComplete={customerComplete} formTouched={formTouched} totalPriceMdl={totalPriceMdl} depositMdl={depositMdl} remainingHours={remainingHours} remainingMdl={remainingMdl} loading={holding} onMultiHourChange={toggleMultiHour} onCustomerChange={updateCustomer} onContinue={continueBooking} />
       </div>
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-sand bg-white p-4 shadow-[0_-12px_40px_rgba(17,24,39,.12)] xl:hidden"><MobileSummary court={selectedCourt} times={sortedSelectedTimes} customerComplete={customerComplete} depositMdl={depositMdl} loading={holding} onContinue={continueBooking} /></div>
+      <AnimatePresence>
+        {showCustomerModal && selectedCourt && selectedTime && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] grid place-items-center bg-black/65 px-5 py-8 backdrop-blur-[5px]" onMouseDown={(event) => { if (event.currentTarget === event.target) closeCustomerModal(); }}>
+            <motion.section initial={{ opacity: 0, y: 26, scale: .97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 18, scale: .98 }} transition={{ type: "spring", stiffness: 280, damping: 26 }} role="dialog" aria-modal="true" className="w-full max-w-[440px] rounded-[32px] bg-white p-6 shadow-2xl">
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[.18em] text-terracotta">Данные брони</p>
+                  <h3 className="mt-2 text-2xl font-black tracking-[-.04em] text-primary">{selectedCourt.name}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{date} · {selectedTime}–{nextHour(selectedTime)}</p>
+                </div>
+                <button type="button" onClick={closeCustomerModal} aria-label="Закрыть" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-canvas text-primary transition hover:bg-primary hover:text-white"><X size={18} /></button>
+              </div>
+              <CustomerFields customer={customer} formTouched={formTouched} onChange={updateCustomer} />
+              <button type="button" onClick={() => { setFormTouched(true); if (isCustomerComplete(customer)) closeCustomerModal(); }} className="mt-5 flex min-h-14 w-full items-center justify-between rounded-full bg-lime py-1.5 pl-6 pr-1.5 text-sm font-black text-[#050505]">
+                <span>Продолжить</span>
+                <span className="grid h-11 w-11 place-items-center rounded-full bg-[#050505] text-white"><ArrowRight size={17} /></span>
+              </button>
+            </motion.section>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </LayoutGroup>
   );
 }
@@ -214,14 +275,15 @@ function Floating({ title, className }: { title: string; className: string }) { 
 function Mode({ active, label, icon, onClick }: { active: boolean; label: string; icon: React.ReactNode; onClick: () => void }) { return <button type="button" onClick={onClick} className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-[11px] font-black ${active ? "bg-lime text-[#050505]" : "text-white/75"}`}>{icon}{label}</button>; }
 
 function Schedule({ court, selectedTimes, multiHour, customer, formTouched, onMultiHourChange, onSelectTime, onBack, onCustomerChange }: { court: MapCourt; selectedTimes: string[]; multiHour: boolean; customer: CustomerDetails; formTouched: boolean; onMultiHourChange: (enabled: boolean) => void; onSelectTime: (time: string) => void; onBack: () => void; onCustomerChange: (field: keyof CustomerDetails, value: string) => void }) {
-  return <div className="h-full overflow-y-auto rounded-[30px] border border-sand bg-white shadow-soft"><div className="flex items-center gap-3 border-b border-sand p-5"><button type="button" onClick={onBack} aria-label="Вернуться к карте" className="grid h-10 w-10 place-items-center rounded-full bg-[#050505] text-white"><ArrowLeft size={18} /></button><motion.div layoutId={`court-${court.id}`} className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 border-white/80 ${court.color === "blue" ? "bg-[#1268B3]" : "bg-[#B95F42]"}`}><CourtLines /></motion.div><div><h3 className="font-black text-primary">{court.name}</h3><p className="mt-1 text-xs text-gray-400">Indoor · 500 MDL · 60 минут</p></div></div><div className="p-5"><div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h4 className="font-black text-primary">Выберите время</h4><p className="mt-1 text-xs text-gray-400">Ежедневно с 07:00 до 22:00</p></div><MultiHourToggle enabled={multiHour} onChange={onMultiHourChange} /></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{court.slots.map((slot) => { const disabled = slot.status !== "available"; const selected = selectedTimes.includes(slot.time); return <button key={slot.time} type="button" disabled={disabled} onClick={() => onSelectTime(slot.time)} className={`min-h-[64px] rounded-2xl border px-3 py-2 text-left transition ${selected ? "border-[#050505] bg-lime text-[#050505] ring-2 ring-[#050505]" : disabled ? "cursor-not-allowed border-gray-100 bg-gray-100 text-gray-400" : "border-sand bg-white text-primary hover:border-terracotta"}`}><b className="block text-sm">{slot.time}</b><small className="mt-1 block font-bold">{selected ? "Выбрано" : slot.status === "available" ? "500 MDL" : slot.status === "held" ? "Удерживается" : slot.status === "past" ? "Прошло" : "Занято"}</small></button>; })}</div>{selectedTimes.length > 0 && <div className="mt-6 rounded-[24px] border border-sand bg-canvas p-5 xl:hidden"><CustomerFields customer={customer} formTouched={formTouched} onChange={onCustomerChange} /></div>}</div></div>;
+  return <div className="h-full overflow-y-auto rounded-[30px] border border-sand bg-white shadow-soft"><div className="flex items-center gap-3 border-b border-sand p-5"><button type="button" onClick={onBack} aria-label="Вернуться к карте" className="grid h-10 w-10 place-items-center rounded-full bg-[#050505] text-white"><ArrowLeft size={18} /></button><motion.div layoutId={`court-${court.id}`} className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 border-white/80 ${court.color === "blue" ? "bg-[#1268B3]" : "bg-[#B95F42]"}`}><CourtLines /></motion.div><div><h3 className="font-black text-primary">{court.name}</h3><p className="mt-1 text-xs text-gray-400">Indoor · 500 MDL · 60 минут</p></div></div><div className="p-5"><div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h4 className="font-black text-primary">Выберите время</h4><p className="mt-1 text-xs text-gray-400">Ежедневно с 07:00 до 22:00</p></div><MultiHourToggle enabled={multiHour} onChange={onMultiHourChange} /></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{court.slots.map((slot) => { const disabled = slot.status !== "available"; const selected = selectedTimes.includes(slot.time); return <button key={slot.time} type="button" disabled={disabled} onClick={() => onSelectTime(slot.time)} className={`min-h-[64px] rounded-2xl border px-3 py-2 text-left transition ${selected ? "border-[#050505] bg-lime text-[#050505] ring-2 ring-[#050505]" : disabled ? "cursor-not-allowed border-gray-100 bg-gray-100 text-gray-400" : "border-sand bg-white text-primary hover:border-terracotta"}`}><b className="block text-sm">{slot.time}</b><small className="mt-1 block font-bold">{selected ? "Выбрано" : slot.status === "available" ? "500 MDL" : slot.status === "held" ? "Удерживается" : slot.status === "past" ? "Прошло" : "Занято"}</small></button>; })}</div>{selectedTimes.length > 0 && <div id="booking-customer-fields" className="mt-6 rounded-[24px] border border-sand bg-canvas p-5 xl:hidden"><CustomerFields customer={customer} formTouched={formTouched} onChange={onCustomerChange} /></div>}</div></div>;
 }
 
 function BookingSummary({ court, times, multiHour, date, customer, customerComplete, formTouched, totalPriceMdl, depositMdl, remainingHours, remainingMdl, loading, onMultiHourChange, onCustomerChange, onContinue }: { court: MapCourt | null; times: string[]; multiHour: boolean; date: string; customer: CustomerDetails; customerComplete: boolean; formTouched: boolean; totalPriceMdl: number; depositMdl: number; remainingHours: number; remainingMdl: number; loading: boolean; onMultiHourChange: (enabled: boolean) => void; onCustomerChange: (field: keyof CustomerDetails, value: string) => void; onContinue: () => void }) {
-  return <aside className="sticky top-28 hidden rounded-[28px] border border-sand bg-white p-6 shadow-soft xl:block"><div className="flex items-start justify-between gap-3"><h3 className="text-lg font-black text-primary">Ваша бронь</h3><MultiHourToggle enabled={multiHour} onChange={onMultiHourChange} /></div>{court && times.length ? <div className="mt-5"><div className="rounded-[22px] bg-terracotta p-5 text-white"><small className="text-white/70">PadelPoint</small><b className="mt-1 block text-lg">{court.name}</b><p className="mt-1 text-xs text-white/75">{date} · {formatSelectedTimes(times)}</p></div><div className="my-5 space-y-3"><div className="flex items-end justify-between"><span className="text-sm text-gray-500">Всего</span><b className="text-2xl font-black text-primary">{totalPriceMdl} MDL</b></div><div className="rounded-2xl bg-canvas p-4 text-sm"><p className="flex justify-between font-black text-primary"><span>Предоплата сейчас</span><span>{depositMdl} MDL</span></p>{remainingHours > 0 && <p className="mt-2 flex justify-between text-xs font-bold text-terracotta"><span>Доплата в клубе: {remainingHours} ч.</span><span>{remainingMdl} MDL</span></p>}</div></div><CustomerFields customer={customer} formTouched={formTouched} onChange={onCustomerChange} /><button type="button" onClick={onContinue} disabled={loading} className="group mt-5 flex min-h-14 w-full items-center justify-between rounded-full bg-lime py-1.5 pl-5 pr-1.5 text-sm font-black text-[#050505] disabled:bg-gray-200 disabled:text-gray-400 disabled:opacity-80"><span>{loading ? "Создаём бронь..." : `Оплатить предоплату ${depositMdl} MDL`}</span><span className="grid h-11 w-11 place-items-center rounded-full bg-[#050505] text-white">{loading ? <LoaderCircle size={17} className="animate-spin" /> : <ArrowRight size={17} />}</span></button><p className="mt-3 flex items-center justify-center gap-1 text-[10px] text-gray-400"><ShieldCheck size={12} /> Слот удерживается 10 минут</p></div> : <div className="mt-5 rounded-[22px] border border-dashed border-sand bg-canvas p-7 text-center"><Clock3 className="mx-auto text-primary/25" /><p className="mt-4 text-sm font-black text-primary">Выберите корт и время</p><p className="mt-2 text-xs text-gray-400">Итог появится здесь</p></div>}</aside>;
+  const showDepositBreakdown = multiHour && times.length > 1;
+  return <aside className="sticky top-28 hidden rounded-[28px] border border-sand bg-white p-6 shadow-soft xl:block"><div className="flex items-start justify-between gap-3"><h3 className="text-lg font-black text-primary">Ваша бронь</h3><MultiHourToggle enabled={multiHour} onChange={onMultiHourChange} /></div>{court && times.length ? <div className="mt-5"><div className="rounded-[22px] bg-terracotta p-5 text-white"><small className="text-white/70">PadelPoint</small><b className="mt-1 block text-lg">{court.name}</b><p className="mt-1 text-xs text-white/75">{date} · {formatSelectedTimes(times)}</p></div>{showDepositBreakdown ? <div className="my-5 space-y-3"><div className="rounded-2xl bg-canvas p-4 text-sm"><p className="flex justify-between font-black text-primary"><span>Предоплата сейчас</span><span>{depositMdl} MDL</span></p>{remainingHours > 0 && <p className="mt-2 flex justify-between text-xs font-bold text-terracotta"><span>Доплата в клубе: {remainingHours} ч.</span><span>{remainingMdl} MDL</span></p>}</div><div className="flex items-end justify-between"><span className="text-sm text-gray-500">Всего</span><b className="text-2xl font-black text-primary">{totalPriceMdl} MDL</b></div></div> : <div className="my-5 flex items-end justify-between"><span className="text-sm text-gray-500">К оплате</span><b className="text-2xl font-black text-primary">{totalPriceMdl} MDL</b></div>}<CustomerFields customer={customer} formTouched={formTouched} onChange={onCustomerChange} /><button type="button" onClick={onContinue} disabled={loading} className="group mt-5 flex min-h-14 w-full items-center justify-between rounded-full bg-lime py-1.5 pl-5 pr-1.5 text-sm font-black text-[#050505] disabled:bg-gray-200 disabled:text-gray-400 disabled:opacity-80"><span>{loading ? "Создаём бронь..." : showDepositBreakdown ? `Оплатить предоплату ${depositMdl} MDL` : "Перейти к оплате"}</span><span className="grid h-11 w-11 place-items-center rounded-full bg-[#050505] text-white">{loading ? <LoaderCircle size={17} className="animate-spin" /> : <ArrowRight size={17} />}</span></button><p className="mt-3 flex items-center justify-center gap-1 text-[10px] text-gray-400"><ShieldCheck size={12} /> Слот удерживается 10 минут</p></div> : <div className="mt-5 rounded-[22px] border border-dashed border-sand bg-canvas p-7 text-center"><Clock3 className="mx-auto text-primary/25" /><p className="mt-4 text-sm font-black text-primary">Выберите корт и время</p><p className="mt-2 text-xs text-gray-400">Итог появится здесь</p></div>}</aside>;
 }
 function MobileSummary({ court, times, customerComplete, depositMdl, loading, onContinue }: { court: MapCourt | null; times: string[]; customerComplete: boolean; depositMdl: number; loading: boolean; onContinue: () => void }) {
-  return <div className="mx-auto flex max-w-3xl items-center gap-3"><div className="min-w-0 flex-1">{court && times.length ? <><p className="truncate text-xs text-gray-500">{customerComplete ? court.name : "Проверьте данные брони"}</p><b className="text-primary">{times.length} ч. · предоплата {depositMdl} MDL</b></> : <b className="text-sm text-primary">Выберите корт и время</b>}</div><button type="button" disabled={!court || !times.length || loading} onClick={onContinue} className="flex items-center gap-2 rounded-full bg-lime py-1.5 pl-5 pr-1.5 text-sm font-black text-[#050505] disabled:bg-gray-200 disabled:text-gray-400">{loading ? "Создаём..." : "Оплатить"}<span className="grid h-9 w-9 place-items-center rounded-full bg-[#050505] text-white"><ArrowRight size={15} /></span></button></div>;
+  return <div className="mx-auto flex max-w-3xl items-center gap-3"><div className="min-w-0 flex-1">{court && times.length ? <><p className="truncate text-xs text-gray-500">{customerComplete ? court.name : "Проверьте данные брони"}</p><b className="text-primary">{times.length > 1 ? `${times.length} ч. · предоплата ${depositMdl} MDL` : `${times[0]} · 500 MDL`}</b></> : <b className="text-sm text-primary">Выберите корт и время</b>}</div><button type="button" disabled={!court || !times.length || loading} onClick={onContinue} className="flex items-center gap-2 rounded-full bg-lime py-1.5 pl-5 pr-1.5 text-sm font-black text-[#050505] disabled:bg-gray-200 disabled:text-gray-400">{loading ? "Создаём..." : "Оплатить"}<span className="grid h-9 w-9 place-items-center rounded-full bg-[#050505] text-white"><ArrowRight size={15} /></span></button></div>;
 }
 
 function MultiHourToggle({ enabled, onChange }: { enabled: boolean; onChange: (enabled: boolean) => void }) {

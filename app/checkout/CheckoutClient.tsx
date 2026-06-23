@@ -75,6 +75,7 @@ export default function CheckoutClient({ bookingId }: { bookingId: string }) {
   const totalMdl = booking?.priceMdl ?? 500;
   const remainingHours = booking?.remainingHours ?? 0;
   const remainingMdl = booking?.remainingMdl ?? 0;
+  const showDepositBreakdown = remainingHours > 0;
 
   if (!booking) {
     return <AppShell><main className="mx-auto max-w-2xl px-5 py-20 text-center"><p className="text-xs font-black uppercase tracking-wider text-terracotta">PadelPoint booking</p><h1 className="mt-3 text-4xl font-black tracking-[-.05em] text-primary">Бронь не найдена</h1><p className="mt-3 text-gray-500">Выберите корт и время перед оплатой.</p><a href="/booking" className="mt-7 inline-flex items-center gap-3 rounded-full bg-lime py-1.5 pl-6 pr-1.5 text-sm font-black text-[#050505]">Вернуться к карте <span className="grid h-10 w-10 place-items-center rounded-full bg-[#050505] text-white"><ArrowRight size={16} /></span></a></main></AppShell>;
@@ -102,7 +103,7 @@ export default function CheckoutClient({ bookingId }: { bookingId: string }) {
             </div>
             {error && <p role="alert" className="mt-5 rounded-2xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
             <button type="button" onClick={pay} disabled={paying} className="mt-6 flex min-h-14 w-full items-center justify-between rounded-full bg-lime py-1.5 pl-6 pr-1.5 text-sm font-black text-[#050505] disabled:opacity-60">
-              <span>{paying ? "Подтверждаем платёж..." : `Оплатить предоплату ${depositMdl} MDL`}</span>
+              <span>{paying ? "Подтверждаем платёж..." : showDepositBreakdown ? `Оплатить предоплату ${depositMdl} MDL` : `Оплатить ${totalMdl} MDL`}</span>
               <span className="grid h-11 w-11 place-items-center rounded-full bg-[#050505] text-white">{paying ? <LoaderCircle className="animate-spin" size={18} /> : <ArrowRight size={18} />}</span>
             </button>
             <p className="mt-4 flex items-center justify-center gap-1.5 text-[10px] text-gray-400"><ShieldCheck size={12} />Защищённая платёжная сессия</p>
@@ -116,13 +117,7 @@ export default function CheckoutClient({ bookingId }: { bookingId: string }) {
               <p className="flex items-center gap-2 text-white/80"><Clock3 size={16} />{selectedTimes.length > 1 ? `${selectedTimes.length} часа: ${selectedTimes.join(", ")}` : `${booking.time} · 60 минут`}</p>
             </div>
             {booking.customer && <div className="mt-5 rounded-[22px] bg-white/12 p-4 text-xs leading-5 text-white/80"><b className="mb-2 block text-sm text-white">{booking.customer.fullName}</b><p>{booking.customer.phone}</p><p>{booking.customer.email}</p><p>Гостей: {booking.customer.guests}</p></div>}
-            <div className="mt-6 space-y-3">
-              <div className="flex items-end justify-between"><span className="text-sm text-white/70">Итого</span><b className="text-3xl">{totalMdl} MDL</b></div>
-              <div className="rounded-[18px] bg-white p-4 text-primary">
-                <p className="flex justify-between text-sm font-black"><span>Предоплата сейчас</span><span>{depositMdl} MDL</span></p>
-                {remainingHours > 0 && <p className="mt-2 flex justify-between text-xs font-bold text-terracotta"><span>Доплата в клубе: {remainingHours} ч.</span><span>{remainingMdl} MDL</span></p>}
-              </div>
-            </div>
+            {showDepositBreakdown ? <div className="mt-6 space-y-3"><div className="rounded-[18px] bg-white p-4 text-primary"><p className="flex justify-between text-sm font-black"><span>Предоплата сейчас</span><span>{depositMdl} MDL</span></p><p className="mt-2 flex justify-between text-xs font-bold text-terracotta"><span>Доплата в клубе: {remainingHours} ч.</span><span>{remainingMdl} MDL</span></p></div><div className="flex items-end justify-between"><span className="text-sm text-white/70">Итого</span><b className="text-3xl">{totalMdl} MDL</b></div></div> : <div className="mt-6 flex items-end justify-between"><span className="text-sm text-white/70">Итого</span><b className="text-3xl">{totalMdl} MDL</b></div>}
             <div className="mt-7 rounded-[22px] bg-white p-4 text-xs leading-5 text-primary">Слот удерживается 10 минут. Финальное подтверждение появится сразу после оплаты.</div>
           </aside>
         </div>
