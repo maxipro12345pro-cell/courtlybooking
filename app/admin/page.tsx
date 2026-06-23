@@ -13,8 +13,12 @@ interface AdminBooking {
   courtName: string;
   date: string;
   time: string;
+  times?: string[];
   status: BookingStatus;
-  priceMdl: 500;
+  priceMdl: number;
+  depositMdl?: number;
+  remainingHours?: number;
+  remainingMdl?: number;
   customer?: {
     fullName: string;
     phone: string;
@@ -27,6 +31,19 @@ interface AdminBooking {
 
 function todayValue() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function nextHour(time: string) {
+  return `${String(Number(time.slice(0, 2)) + 1).padStart(2, "0")}:00`;
+}
+
+function bookingTimes(booking: AdminBooking) {
+  return booking.times?.length ? booking.times : [booking.time];
+}
+
+function displayBookingTimes(booking: AdminBooking) {
+  const times = bookingTimes(booking);
+  return times.length > 1 ? `${times.length} часа: ${times.join(", ")}` : `${booking.time}–${nextHour(booking.time)}`;
 }
 
 export default function AdminPage() {
@@ -53,14 +70,16 @@ export default function AdminPage() {
   const bookingsBySlot = useMemo(() => {
     const map = new Map<string, AdminBooking>();
     for (const booking of dayBookings) {
-      map.set(`${booking.courtId}:${booking.time}`, booking);
+      for (const time of bookingTimes(booking)) {
+        map.set(`${booking.courtId}:${time}`, booking);
+      }
     }
     return map;
   }, [dayBookings]);
 
   const confirmedCount = dayBookings.filter((booking) => booking.status === "confirmed").length;
   const heldCount = dayBookings.filter((booking) => booking.status === "held").length;
-  const revenue = confirmedCount * 500;
+  const revenue = dayBookings.filter((booking) => booking.status === "confirmed").reduce((sum, booking) => sum + (booking.depositMdl ?? 500), 0);
 
   return (
     <main className="min-h-screen bg-canvas text-primary">
@@ -95,7 +114,7 @@ export default function AdminPage() {
         <div className="mt-7 grid gap-3 sm:grid-cols-3">
           <Metric label="Подтверждено" value={confirmedCount.toString()} />
           <Metric label="Удерживается" value={heldCount.toString()} />
-          <Metric label="Оплачено" value={`${revenue} MDL`} />
+          <Metric label="Предоплата получена" value={`${revenue} MDL`} />
         </div>
 
         <div className="mt-7 overflow-hidden rounded-[34px] border border-sand bg-white shadow-soft">
@@ -169,10 +188,11 @@ function BookingCard({ booking }: { booking: AdminBooking }) {
         <div>
           <p className="text-xs font-black uppercase tracking-wider text-terracotta">{booking.status}</p>
           <h3 className="mt-2 text-2xl font-black">{booking.courtName}</h3>
-          <p className="mt-1 flex items-center gap-2 text-sm text-gray-500"><Clock3 size={15} />{booking.date} · {booking.time}–{`${String(Number(booking.time.slice(0,2))+1).padStart(2,"0")}:00`}</p>
+          <p className="mt-1 flex items-center gap-2 text-sm text-gray-500"><Clock3 size={15} />{booking.date} · {displayBookingTimes(booking)}</p>
         </div>
-        <b className="rounded-full bg-canvas px-4 py-2 text-sm">500 MDL</b>
+        <b className="rounded-full bg-canvas px-4 py-2 text-sm">{booking.priceMdl ?? 500} MDL</b>
       </div>
+      {(booking.remainingHours ?? 0) > 0 && <div className="mt-4 rounded-2xl border border-terracotta/20 bg-terracotta/10 p-4 text-sm font-black text-terracotta">Должен доплатить ещё {booking.remainingHours} ч. · {booking.remainingMdl} MDL</div>}
       <div className="mt-5 rounded-2xl bg-canvas p-4">
         <BookingDetails booking={booking} />
       </div>
@@ -187,6 +207,7 @@ function BookingDetails({ booking }: { booking: AdminBooking }) {
       <p className="flex items-center gap-2 text-gray-500"><Phone size={14} />{booking.customer?.phone || "—"}</p>
       <p className="flex items-center gap-2 text-gray-500"><Mail size={14} />{booking.customer?.email || "—"}</p>
       <p className="flex items-center gap-2 text-gray-500"><UsersRound size={14} />Гостей: {booking.customer?.guests ?? "—"}</p>
+      {(booking.remainingHours ?? 0) > 0 && <p className="rounded-xl bg-terracotta/10 px-3 py-2 font-black text-terracotta">Доплата: {booking.remainingHours} ч. · {booking.remainingMdl} MDL</p>}
     </div>
   );
 }
