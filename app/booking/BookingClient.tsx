@@ -36,6 +36,29 @@ export default function BookingClient({ initialDate }: { initialDate: string }) 
   const weekend = useMemo(nextSaturday, []);
 
   useEffect(() => {
+    if (pathname !== "/" && pathname !== "/booking") return;
+
+    const previousScrollRestoration =
+      "scrollRestoration" in window.history ? window.history.scrollRestoration : null;
+
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    const frame = requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+      if (previousScrollRestoration) {
+        window.history.scrollRestoration = previousScrollRestoration;
+      }
+    };
+  }, [pathname]);
+
+  useEffect(() => {
     if ((pathname === "/" || pathname === "/booking") && !sessionStorage.getItem("padelpoint:date-modal-seen")) {
       const frame = requestAnimationFrame(() => setShowDateModal(true));
       return () => cancelAnimationFrame(frame);
