@@ -45,15 +45,33 @@ const emptyCustomer: CustomerDetails = {
   fullName: "",
   phone: "",
   email: "",
-  guests: "1",
+  guests: "2",
 };
+
+function isFullNameValid(value: string) {
+  return /^[A-Za-zА-Яа-яЁёȘșȚțĂăÂâÎî'’-]{2,}(?:\s+[A-Za-zА-Яа-яЁёȘșȚțĂăÂâÎî'’-]{2,})+$/.test(value.trim());
+}
+
+function isPhoneValid(value: string) {
+  const trimmed = value.trim();
+  const digits = trimmed.replace(/\D/g, "");
+  return /^\+?[\d\s().-]{8,20}$/.test(trimmed) && digits.length >= 8 && digits.length <= 15;
+}
+
+function isEmailValid(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim());
+}
+
+function isGuestsValid(value: string) {
+  return Number.isInteger(Number(value)) && Number(value) >= 2;
+}
 
 function isCustomerComplete(customer: CustomerDetails) {
   return Boolean(
-    customer.fullName.trim() &&
-    customer.phone.trim() &&
-    customer.email.trim() &&
-    Number(customer.guests) >= 1,
+    isFullNameValid(customer.fullName) &&
+    isPhoneValid(customer.phone) &&
+    isEmailValid(customer.email) &&
+    isGuestsValid(customer.guests),
   );
 }
 
@@ -174,21 +192,22 @@ function CustomerFields({ customer, formTouched, onChange }: { customer: Custome
         <p className="mt-1 text-xs text-gray-400">Эти поля обязательны для администратора клуба.</p>
       </div>
       <div className="grid gap-3">
-        <CustomerField label="ФИО" value={customer.fullName} placeholder="Иван Петров" required invalid={formTouched && !customer.fullName.trim()} onChange={(value) => onChange("fullName", value)} />
-        <CustomerField label="Номер телефона" value={customer.phone} placeholder="+373 78 003100" type="tel" required invalid={formTouched && !customer.phone.trim()} onChange={(value) => onChange("phone", value)} />
-        <CustomerField label="Email" value={customer.email} placeholder="name@email.com" type="email" required invalid={formTouched && !customer.email.trim()} onChange={(value) => onChange("email", value)} />
-        <CustomerField label="Количество гостей" value={customer.guests} placeholder="1" type="number" min={1} max={8} required invalid={formTouched && Number(customer.guests) < 1} onChange={(value) => onChange("guests", value)} />
+        <CustomerField label="ФИО" value={customer.fullName} placeholder="Иван Петров" required invalid={formTouched && !isFullNameValid(customer.fullName)} hint="Минимум имя и фамилия" onChange={(value) => onChange("fullName", value)} />
+        <CustomerField label="Номер телефона" value={customer.phone} placeholder="+373 78 003100" type="tel" inputMode="tel" required invalid={formTouched && !isPhoneValid(customer.phone)} hint="Например: +373 78 003100" onChange={(value) => onChange("phone", value)} />
+        <CustomerField label="Email" value={customer.email} placeholder="name@email.com" type="email" inputMode="email" required invalid={formTouched && !isEmailValid(customer.email)} hint="Введите корректный email" onChange={(value) => onChange("email", value)} />
+        <CustomerField label="Количество игроков" value={customer.guests} placeholder="2" type="number" min={2} max={8} required invalid={formTouched && !isGuestsValid(customer.guests)} hint="Минимум 2 игрока" onChange={(value) => onChange("guests", value)} />
       </div>
-      {formTouched && !isCustomerComplete(customer) && <p className="mt-3 rounded-2xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700">Заполните ФИО, номер, email и количество гостей.</p>}
+      {formTouched && !isCustomerComplete(customer) && <p className="mt-3 rounded-2xl bg-red-50 px-3 py-2 text-xs font-bold text-red-700">Введите корректные ФИО, телефон, email и минимум 2 игроков.</p>}
     </div>
   );
 }
 
-function CustomerField({ label, value, placeholder, type = "text", min, max, required, invalid, onChange }: { label: string; value: string; placeholder: string; type?: string; min?: number; max?: number; required?: boolean; invalid?: boolean; onChange: (value: string) => void }) {
+function CustomerField({ label, value, placeholder, type = "text", inputMode, min, max, required, invalid, hint, onChange }: { label: string; value: string; placeholder: string; type?: string; inputMode?: "search" | "text" | "email" | "tel" | "url" | "none" | "numeric" | "decimal"; min?: number; max?: number; required?: boolean; invalid?: boolean; hint?: string; onChange: (value: string) => void }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-primary/55">{label}{required && <span className="text-terracotta"> *</span>}</span>
-      <input value={value} placeholder={placeholder} type={type} min={min} max={max} required={required} onChange={(event) => onChange(event.target.value)} className={`w-full rounded-2xl border bg-white px-4 py-3 text-sm font-bold text-primary outline-none transition focus:border-terracotta ${invalid ? "border-red-300 ring-2 ring-red-100" : "border-sand"}`} />
+      <input value={value} placeholder={placeholder} type={type} inputMode={inputMode} min={min} max={max} required={required} onChange={(event) => onChange(event.target.value)} className={`w-full rounded-2xl border bg-white px-4 py-3 text-sm font-bold text-primary outline-none transition focus:border-terracotta ${invalid ? "border-red-300 ring-2 ring-red-100" : "border-sand"}`} />
+      {invalid && hint && <span className="mt-1.5 block text-[10px] font-bold text-red-600">{hint}</span>}
     </label>
   );
 }
