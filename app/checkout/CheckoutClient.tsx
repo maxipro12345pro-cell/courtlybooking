@@ -13,6 +13,12 @@ interface HeldBooking {
   priceMdl: 500;
   status: string;
   holdExpiresAt: string;
+  customer?: {
+    fullName: string;
+    phone: string;
+    email: string;
+    guests: number;
+  };
 }
 
 export default function CheckoutClient({ bookingId }: { bookingId: string }) {
@@ -47,6 +53,11 @@ export default function CheckoutClient({ bookingId }: { bookingId: string }) {
       const result = await confirmed.json();
       const completed = { ...booking, status: "confirmed", paymentId: payment.id, paymentStatus: result.paymentStatus };
       sessionStorage.setItem(`booking:${bookingId}`, JSON.stringify(completed));
+      const existing = JSON.parse(localStorage.getItem("padelpoint:bookings") || "[]");
+      localStorage.setItem(
+        "padelpoint:bookings",
+        JSON.stringify([completed, ...existing.filter((item: { id: string }) => item.id !== bookingId)]),
+      );
       router.push(`/payment-success?bookingId=${bookingId}&paymentId=${payment.id}`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Ошибка оплаты");
@@ -93,6 +104,7 @@ export default function CheckoutClient({ bookingId }: { bookingId: string }) {
               <p className="flex items-center gap-2 text-white/80"><CalendarDays size={16} />{booking.date}</p>
               <p className="flex items-center gap-2 text-white/80"><Clock3 size={16} />{booking.time} · 60 минут</p>
             </div>
+            {booking.customer && <div className="mt-5 rounded-[22px] bg-white/12 p-4 text-xs leading-5 text-white/80"><b className="mb-2 block text-sm text-white">{booking.customer.fullName}</b><p>{booking.customer.phone}</p><p>{booking.customer.email}</p><p>Гостей: {booking.customer.guests}</p></div>}
             <div className="mt-6 flex items-end justify-between"><span className="text-sm text-white/70">Итого</span><b className="text-3xl">500 MDL</b></div>
             <div className="mt-7 rounded-[22px] bg-white p-4 text-xs leading-5 text-primary">Слот удерживается 10 минут. Финальное подтверждение появится сразу после оплаты.</div>
           </aside>
