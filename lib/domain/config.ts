@@ -5,7 +5,7 @@ export const CLUB = {
   sport: "padel",
   courtCount: 9,
   openingHour: 8,
-  closingHour: 22,
+  closingHour: 23,
   slotDurationMinutes: 60,
   priceMdl: 500,
   currency: "MDL",
