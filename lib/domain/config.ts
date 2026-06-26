@@ -4,7 +4,7 @@ export const CLUB = {
   address: "Chișinău, Moldova",
   sport: "padel",
   courtCount: 9,
-  openingHour: 7,
+  openingHour: 8,
   closingHour: 22,
   slotDurationMinutes: 60,
   priceMdl: 500,
