@@ -33,7 +33,8 @@ export default function CheckoutClient({ bookingId }: { bookingId: string }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const raw = sessionStorage.getItem(`booking:${bookingId}`);
+    const resolvedBookingId = bookingId || new URLSearchParams(window.location.search).get("bookingId") || "";
+    const raw = sessionStorage.getItem(`booking:${resolvedBookingId}`);
     if (raw) setBooking(JSON.parse(raw));
   }, [bookingId]);
 
