@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check, Clock3, DoorOpen, Layers3, LoaderCircle, Map, ShieldCheck, X } from "lucide-react";
@@ -140,7 +140,24 @@ export default function CourtMapSection({ date }: { date: string }) {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [customerModalDismissed, setCustomerModalDismissed] = useState(false);
   const [holding, setHolding] = useState(false);
-  const selectedCourt = courts.find((court) => court.id === selectedCourtId) ?? null;
+
+  const courtsForDate = useMemo(() => {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const isPast = date < todayStr;
+    const isToday = date === todayStr;
+    const nowMinutes = today.getHours() * 60 + today.getMinutes();
+    return courts.map((court) => ({
+      ...court,
+      slots: court.slots.map((slot) => {
+        const slotMinutes = parseInt(slot.time) * 60;
+        const past = isPast || (isToday && slotMinutes < nowMinutes);
+        return past ? { ...slot, status: "past" as SlotStatus } : slot;
+      }),
+    }));
+  }, [date]);
+
+  const selectedCourt = courtsForDate.find((court) => court.id === selectedCourtId) ?? null;
   const sortedSelectedTimes = sortTimes(selectedTimes);
   const selectedTime = sortedSelectedTimes[0] ?? null;
   const selectedHourCount = sortedSelectedTimes.length;
@@ -295,9 +312,9 @@ export default function CourtMapSection({ date }: { date: string }) {
             {viewMode !== "schedule" ? (
               <motion.div key="map" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 {isMobileViewport ? (
-                  <MobileCourtPlan courts={courts} selectedCourtId={selectedCourtId} onSelect={selectCourt} />
+                  <MobileCourtPlan courts={courtsForDate} selectedCourtId={selectedCourtId} onSelect={selectCourt} />
                 ) : (
-                  <ClubMap courts={courts} viewMode={viewMode} selectedCourtId={selectedCourtId} onModeChange={setViewMode} onSelect={selectCourt} onFlattenComplete={() => { if (selectedCourtId && viewMode === "plan2d") setViewMode("schedule"); }} />
+                  <ClubMap courts={courtsForDate} viewMode={viewMode} selectedCourtId={selectedCourtId} onModeChange={setViewMode} onSelect={selectCourt} onFlattenComplete={() => { if (selectedCourtId && viewMode === "plan2d") setViewMode("schedule"); }} />
                 )}
               </motion.div>
             ) : selectedCourt ? (
