@@ -136,6 +136,11 @@ export default function CourtMapSection({ date }: { date: string }) {
     setFormTouched(false);
     setShowCustomerModal(false);
     setCustomerModalDismissed(false);
+    const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+    if (isMobile) {
+      setViewMode("schedule");
+      return;
+    }
     if (viewMode === "plan2d") window.setTimeout(() => setViewMode("schedule"), 150);
     else setViewMode("plan2d");
   }
@@ -215,11 +220,14 @@ export default function CourtMapSection({ date }: { date: string }) {
   return (
     <LayoutGroup id="padelpoint-courts">
       <div className="grid items-start gap-5 rounded-[38px] bg-terracotta p-3 shadow-soft sm:p-5 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="relative h-[570px] min-w-0 sm:h-[620px]">
+        <div className="relative h-[720px] min-w-0 md:h-[620px]">
           <AnimatePresence initial={false} mode="popLayout">
             {viewMode !== "schedule" ? (
               <motion.div key="map" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <ClubMap courts={courts} viewMode={viewMode} selectedCourtId={selectedCourtId} onModeChange={setViewMode} onSelect={selectCourt} onFlattenComplete={() => { if (selectedCourtId && viewMode === "plan2d") setViewMode("schedule"); }} />
+                <MobileCourtPlan courts={courts} selectedCourtId={selectedCourtId} onSelect={selectCourt} />
+                <div className="hidden h-full md:block">
+                  <ClubMap courts={courts} viewMode={viewMode} selectedCourtId={selectedCourtId} onModeChange={setViewMode} onSelect={selectCourt} onFlattenComplete={() => { if (selectedCourtId && viewMode === "plan2d") setViewMode("schedule"); }} />
+                </div>
               </motion.div>
             ) : selectedCourt ? (
               <motion.div key="schedule" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -258,6 +266,68 @@ export default function CourtMapSection({ date }: { date: string }) {
 
 function ClubMap({ courts, viewMode, selectedCourtId, onModeChange, onSelect, onFlattenComplete }: { courts: MapCourt[]; viewMode: "map3d" | "plan2d"; selectedCourtId: string | null; onModeChange: (mode: "map3d" | "plan2d") => void; onSelect: (court: MapCourt) => void; onFlattenComplete: () => void }) {
   return <div className="flex h-full flex-col overflow-hidden rounded-[30px] border border-white/30 bg-terracotta"><div className="flex items-center justify-between border-b border-white/30 px-5 py-4"><div><h2 className="font-black text-white">Карта PadelPoint</h2><p className="mt-1 text-xs text-white/70">9 indoor-кортов · 500 MDL / час</p></div><div className="flex rounded-full bg-white/15 p-1"><Mode active={viewMode === "map3d"} label="3D" icon={<Layers3 size={14} />} onClick={() => onModeChange("map3d")} /><Mode active={viewMode === "plan2d"} label="План" icon={<Map size={14} />} onClick={() => onModeChange("plan2d")} /></div></div><div className="relative flex-1 overflow-x-auto overflow-y-hidden bg-terracotta p-3 [perspective:1500px]"><motion.div animate={{ rotateX: viewMode === "map3d" ? 34 : 0, rotateZ: viewMode === "map3d" ? -12 : 0, scale: viewMode === "map3d" ? .9 : 1 }} transition={{ type: "spring", stiffness: 110, damping: 22 }} onAnimationComplete={() => { if (viewMode === "plan2d" && selectedCourtId) onFlattenComplete(); }} className="relative z-20 mx-auto aspect-[1.85] h-full min-h-[430px] min-w-[820px] [transform-style:preserve-3d]"><Building dimmed={Boolean(selectedCourtId)} /><Columns dimmed={Boolean(selectedCourtId)} />{courts.map((court) => <CourtZone key={court.id} court={court} selected={selectedCourtId === court.id} dimmed={Boolean(selectedCourtId && selectedCourtId !== court.id)} onSelect={onSelect} />)}<div className="absolute bottom-[4%] left-[43%] flex items-center gap-2 rounded-full bg-white px-3 py-2 text-[9px] font-black uppercase tracking-wider text-primary shadow-lg [transform:translateZ(18px)]"><DoorOpen size={13} />Вход и reception</div></motion.div><Floating className="right-5 top-5" title="Свободно сегодня" /></div></div>;
+}
+
+function MobileCourtPlan({ courts, selectedCourtId, onSelect }: { courts: MapCourt[]; selectedCourtId: string | null; onSelect: (court: MapCourt) => void }) {
+  const blueCourts = courts.filter((court) => court.color === "blue");
+  const terracottaCourts = courts.filter((court) => court.color === "terracotta");
+
+  return (
+    <div className="flex h-full flex-col overflow-hidden rounded-[30px] border border-white/30 bg-terracotta md:hidden">
+      <div className="flex items-start justify-between gap-3 border-b border-white/25 px-4 py-4">
+        <div>
+          <h2 className="text-lg font-black text-white">Карта PadelPoint</h2>
+          <p className="mt-1 text-xs font-bold text-white/70">Вертикальный 2D-план · 9 indoor-кортов</p>
+        </div>
+        <span className="rounded-full bg-lime px-3 py-2 text-[10px] font-black text-[#050505]">500 MDL / час</span>
+      </div>
+
+      <div className="flex-1 p-3">
+        <div className="relative h-full overflow-hidden rounded-[26px] border border-[#d2c8bd] bg-[#ECE7DD] p-3 shadow-inner">
+          <div className="absolute inset-x-5 top-4 h-8 rounded-full bg-[#d8d2c4]" />
+          <div className="absolute inset-x-5 bottom-4 h-8 rounded-full bg-[#d8d2c4]" />
+          <div className="absolute bottom-12 left-4 top-14 w-5 rounded-full bg-white/80 shadow-sm" />
+          <div className="absolute bottom-12 right-4 top-14 w-5 rounded-full bg-white/80 shadow-sm" />
+
+          <div className="relative z-10 flex h-full flex-col gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              {blueCourts.map((court) => (
+                <MobileCourtTile key={court.id} court={court} selected={selectedCourtId === court.id} onSelect={onSelect} />
+              ))}
+            </div>
+
+            <div className="grid min-h-12 place-items-center rounded-2xl border border-dashed border-[#c8beb2] bg-[#D8D2C4]/70 px-3 text-center text-[10px] font-black uppercase tracking-[.16em] text-primary/55">
+              Walkway · entrance · reception
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              {terracottaCourts.map((court) => (
+                <MobileCourtTile key={court.id} court={court} selected={selectedCourtId === court.id} onSelect={onSelect} wide />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileCourtTile({ court, selected, wide = false, onSelect }: { court: MapCourt; selected: boolean; wide?: boolean; onSelect: (court: MapCourt) => void }) {
+  const available = court.slots.filter((slot) => slot.status === "available").length;
+
+  return (
+    <motion.button
+      type="button"
+      onClick={() => onSelect(court)}
+      whileTap={{ scale: 0.98 }}
+      className={`relative min-h-[76px] overflow-hidden rounded-[16px] border-[3px] p-1.5 text-left shadow-[0_8px_18px_rgba(38,46,50,.14)] outline-none transition ${wide ? "min-h-[70px]" : ""} ${court.color === "blue" ? "bg-[#1268B3]" : "bg-[#B95F42]"} ${selected ? "border-lime ring-4 ring-lime/40" : "border-white/90 active:border-lime"}`}
+      aria-label={`Открыть расписание ${court.name}`}
+    >
+      <CourtLines />
+      <span className={`absolute left-2 top-2 z-10 rounded-full px-2 py-1 text-[10px] font-black leading-none ${selected ? "bg-lime text-[#050505]" : "bg-[#050505] text-white"}`}>{court.label}</span>
+      <span className="absolute bottom-2 right-2 z-10 rounded-full bg-white/90 px-2 py-1 text-[10px] font-black text-primary">{available} сл.</span>
+    </motion.button>
+  );
 }
 
 function Building({ dimmed }: { dimmed: boolean }) { return <motion.div animate={{ opacity: dimmed ? .35 : 1 }} className="pointer-events-none absolute inset-0 [transform-style:preserve-3d]"><div className="absolute bottom-[3%] left-[3%] h-[20%] w-[94%] border border-[#c5c9c3] bg-[#E5E7E2] shadow-[0_20px_28px_rgba(62,68,70,.25)] [transform:translateZ(8px)]"><div className="absolute inset-x-[3%] top-[24%] flex justify-between">{Array.from({ length: 15 }, (_, i) => <i key={i} className="h-5 w-[4%] border border-[#aeb5b4] bg-[#d5e1e2]/75" />)}</div><div className="absolute inset-x-[2%] top-[-14%] border-t-2 border-[#78878b]/60" /></div><div className="absolute left-[8%] top-[43%] h-[35%] w-[82%] border border-[#bcc2c3] bg-[#dfe2de] shadow-lg [transform:translateZ(4px)]" /><div className="absolute left-[7%] top-[4%] h-[38%] w-[90%] border border-[#c8ccc5] bg-[#f4f5f2] shadow-xl [transform:translateZ(37px)]" /></motion.div>; }
