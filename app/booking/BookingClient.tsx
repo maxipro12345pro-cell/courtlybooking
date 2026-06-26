@@ -90,7 +90,7 @@ export default function BookingClient({ initialDate }: { initialDate: string }) 
 
   return (
     <AppShell>
-      <motion.main initial="hidden" animate="visible" transition={{ staggerChildren: .09 }} className="mx-auto max-w-[1380px] px-5 py-9 lg:px-8 lg:py-12">
+      <motion.main initial="hidden" animate="visible" transition={{ staggerChildren: .09 }} className="mx-auto max-w-[1380px] px-5 pb-32 pt-9 lg:px-8 lg:py-12">
         <motion.a variants={reveal} transition={{ duration: .45, ease: [0.22, 1, 0.36, 1] }} href="https://padelpoint.md" className="group mb-7 inline-flex items-center gap-3 rounded-full border border-sand bg-white py-1.5 pl-1.5 pr-5 text-sm font-black text-primary shadow-sm transition hover:border-primary/30">
           <span className="grid h-10 w-10 place-items-center rounded-full bg-[#050505] text-white transition group-hover:-translate-x-0.5"><ArrowLeft size={17} /></span>
           На основной сайт
