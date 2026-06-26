@@ -30,16 +30,10 @@ const positions = [
   { x: 66, y: 48, width: 21, height: 29, level: "lower" as const },
 ];
 
-const statusPattern: SlotStatus[][] = [
-  ["past","past","available","available","booked","available","held","available","available","booked","available","available","booked","available","unavailable"],
-  ["past","past","available","held","available","available","booked","booked","available","available","available","held","available","booked","available"],
-  ["past","past","past","available","available","booked","available","available","held","available","booked","available","available","available","booked"],
-];
-
 const courts: MapCourt[] = COURT_SEED.map((court, index) => ({
   ...court,
   ...positions[index],
-  slots: BOOKING_HOURS.map((time, slotIndex) => ({ time, status: statusPattern[index % statusPattern.length][slotIndex] })),
+  slots: BOOKING_HOURS.map((time) => ({ time, status: "available" as SlotStatus })),
 }));
 
 const emptyCustomer: CustomerDetails = {
