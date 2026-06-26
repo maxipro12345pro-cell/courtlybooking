@@ -14,6 +14,7 @@ interface AdminBooking {
   date: string;
   time: string;
   times?: string[];
+  timeLabel?: string;
   status: BookingStatus;
   priceMdl: number;
   depositMdl?: number;
@@ -42,8 +43,13 @@ function bookingTimes(booking: AdminBooking) {
 }
 
 function displayBookingTimes(booking: AdminBooking) {
+  if (booking.timeLabel) return booking.timeLabel;
   const times = bookingTimes(booking);
   return times.length > 1 ? `${times.length} часа: ${times.join(", ")}` : `${booking.time}–${nextHour(booking.time)}`;
+}
+
+function formatHours(value: number) {
+  return value.toLocaleString("ru-RU", { maximumFractionDigits: 1 });
 }
 
 export default function AdminPage() {
@@ -192,7 +198,7 @@ function BookingCard({ booking }: { booking: AdminBooking }) {
         </div>
         <b className="rounded-full bg-canvas px-4 py-2 text-sm">{booking.priceMdl ?? 500} MDL</b>
       </div>
-      {(booking.remainingHours ?? 0) > 0 && <div className="mt-4 rounded-2xl border border-terracotta/20 bg-terracotta/10 p-4 text-sm font-black text-terracotta">Должен доплатить ещё {booking.remainingHours} ч. · {booking.remainingMdl} MDL</div>}
+      {(booking.remainingHours ?? 0) > 0 && <div className="mt-4 rounded-2xl border border-terracotta/20 bg-terracotta/10 p-4 text-sm font-black text-terracotta">Должен доплатить ещё {formatHours(booking.remainingHours ?? 0)} ч. · {booking.remainingMdl} MDL</div>}
       <div className="mt-5 rounded-2xl bg-canvas p-4">
         <BookingDetails booking={booking} />
       </div>
@@ -207,7 +213,7 @@ function BookingDetails({ booking }: { booking: AdminBooking }) {
       <p className="flex items-center gap-2 text-gray-500"><Phone size={14} />{booking.customer?.phone || "—"}</p>
       <p className="flex items-center gap-2 text-gray-500"><Mail size={14} />{booking.customer?.email || "—"}</p>
       <p className="flex items-center gap-2 text-gray-500"><UsersRound size={14} />Гостей: {booking.customer?.guests ?? "—"}</p>
-      {(booking.remainingHours ?? 0) > 0 && <p className="rounded-xl bg-terracotta/10 px-3 py-2 font-black text-terracotta">Доплата: {booking.remainingHours} ч. · {booking.remainingMdl} MDL</p>}
+      {(booking.remainingHours ?? 0) > 0 && <p className="rounded-xl bg-terracotta/10 px-3 py-2 font-black text-terracotta">Доплата: {formatHours(booking.remainingHours ?? 0)} ч. · {booking.remainingMdl} MDL</p>}
     </div>
   );
 }

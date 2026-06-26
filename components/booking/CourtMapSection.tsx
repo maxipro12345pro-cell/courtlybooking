@@ -9,9 +9,10 @@ import { BOOKING_HOURS, CLUB, COURT_SEED } from "@/lib/domain/config";
 type SlotStatus = "available" | "booked" | "held" | "past" | "unavailable";
 type CourtColor = "blue" | "terracotta";
 type ViewMode = "map3d" | "plan2d" | "schedule";
+type HalfExtension = "before" | "after" | null;
 
 interface Slot { time: string; status: SlotStatus }
-interface CustomerDetails { fullName: string; phone: string; email: string; guests: string }
+interface CustomerDetails { fullName: string; phone: string; email: string; guests: string; acceptedPolicy: boolean }
 interface MapCourt {
   id: string; name: string; label: string; color: CourtColor; type: "indoor"; priceMdl: 500;
   x: number; y: number; width: number; height: number; level: "upper" | "lower"; slots: Slot[];
@@ -46,6 +47,7 @@ const emptyCustomer: CustomerDetails = {
   phone: "",
   email: "",
   guests: "2",
+  acceptedPolicy: false,
 };
 
 function isFullNameValid(value: string) {
@@ -71,23 +73,56 @@ function isCustomerComplete(customer: CustomerDetails) {
     isFullNameValid(customer.fullName) &&
     isPhoneValid(customer.phone) &&
     isEmailValid(customer.email) &&
-    isGuestsValid(customer.guests),
+    isGuestsValid(customer.guests) &&
+    customer.acceptedPolicy,
   );
+}
+
+function timeToMinutes(time: string) {
+  return Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+}
+
+function minutesToTime(minutes: number) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
 function nextHour(time: string) {
   return `${String(Number(time.slice(0, 2)) + 1).padStart(2, "0")}:00`;
 }
 
+function previousHour(time: string) {
+  return `${String(Number(time.slice(0, 2)) - 1).padStart(2, "0")}:00`;
+}
+
+function formatBookingRange(time: string, halfExtension: HalfExtension) {
+  const startMinutes = timeToMinutes(time) - (halfExtension === "before" ? 30 : 0);
+  const endMinutes = timeToMinutes(time) + 60 + (halfExtension === "after" ? 30 : 0);
+  return `${minutesToTime(startMinutes)}–${minutesToTime(endMinutes)}`;
+}
+
 function sortTimes(times: string[]) {
   return [...times].sort((first, second) => BOOKING_HOURS.indexOf(first) - BOOKING_HOURS.indexOf(second));
 }
 
-function formatSelectedTimes(times: string[]) {
+function formatSelectedTimes(times: string[], halfExtension: HalfExtension = null) {
   const sorted = sortTimes(times);
   if (!sorted.length) return "";
-  if (sorted.length === 1) return `${sorted[0]}–${nextHour(sorted[0])}`;
+  if (sorted.length === 1) return formatBookingRange(sorted[0], halfExtension);
   return `${sorted.length} часа: ${sorted.join(", ")}`;
+}
+
+function formatRemainingPayment(amount: number) {
+  if (!amount) return "0 MDL";
+  const hours = amount / CLUB.priceMdl;
+  return `${hours.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} ч. · ${amount} MDL`;
+}
+
+function canUseHalfExtension(court: MapCourt, selectedTime: string, position: Exclude<HalfExtension, null>) {
+  const neighborTime = position === "before" ? previousHour(selectedTime) : nextHour(selectedTime);
+  if (position === "before" && timeToMinutes(selectedTime) - 30 < CLUB.openingHour * 60) return false;
+  if (position === "after" && timeToMinutes(selectedTime) + 90 > CLUB.closingHour * 60) return false;
+  const neighborSlot = court.slots.find((slot) => slot.time === neighborTime);
+  return Boolean(neighborSlot && neighborSlot.status === "available");
 }
 
 export default function CourtMapSection({ date }: { date: string }) {
@@ -95,6 +130,8 @@ export default function CourtMapSection({ date }: { date: string }) {
   const [viewMode, setViewMode] = useState<ViewMode>("map3d");
   const [selectedCourtId, setSelectedCourtId] = useState<string | null>(null);
   const [selectedTimes, setSelectedTimes] = useState<string[]>([]);
+  const [halfExtension, setHalfExtension] = useState<HalfExtension>(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [multiHour, setMultiHour] = useState(false);
   const [customer, setCustomer] = useState<CustomerDetails>(emptyCustomer);
   const [formTouched, setFormTouched] = useState(false);
@@ -105,11 +142,20 @@ export default function CourtMapSection({ date }: { date: string }) {
   const sortedSelectedTimes = sortTimes(selectedTimes);
   const selectedTime = sortedSelectedTimes[0] ?? null;
   const selectedHourCount = sortedSelectedTimes.length;
-  const totalPriceMdl = selectedHourCount * CLUB.priceMdl;
+  const selectedDurationMinutes = selectedHourCount * 60 + (halfExtension ? 30 : 0);
+  const totalPriceMdl = selectedHourCount * CLUB.priceMdl + (halfExtension ? 250 : 0);
   const depositMdl = selectedHourCount ? CLUB.priceMdl : 0;
-  const remainingHours = Math.max(selectedHourCount - 1, 0);
-  const remainingMdl = remainingHours * CLUB.priceMdl;
+  const remainingMdl = Math.max(totalPriceMdl - depositMdl, 0);
+  const remainingHours = remainingMdl / CLUB.priceMdl;
   const customerComplete = isCustomerComplete(customer);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobileViewport(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     if (!selectedHourCount || multiHour || customerComplete || customerModalDismissed) return;
@@ -133,11 +179,11 @@ export default function CourtMapSection({ date }: { date: string }) {
   function selectCourt(court: MapCourt) {
     setSelectedCourtId(court.id);
     setSelectedTimes([]);
+    setHalfExtension(null);
     setFormTouched(false);
     setShowCustomerModal(false);
     setCustomerModalDismissed(false);
-    const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
-    if (isMobile) {
+    if (isMobileViewport) {
       setViewMode("schedule");
       return;
     }
@@ -145,23 +191,30 @@ export default function CourtMapSection({ date }: { date: string }) {
     else setViewMode("plan2d");
   }
 
-  function backToMap() { setSelectedCourtId(null); setSelectedTimes([]); setFormTouched(false); setShowCustomerModal(false); setCustomerModalDismissed(false); setViewMode("map3d"); }
+  function backToMap() { setSelectedCourtId(null); setSelectedTimes([]); setHalfExtension(null); setFormTouched(false); setShowCustomerModal(false); setCustomerModalDismissed(false); setViewMode("map3d"); }
 
   function toggleMultiHour(enabled: boolean) {
     setMultiHour(enabled);
+    setHalfExtension(null);
     setShowCustomerModal(false);
     setCustomerModalDismissed(false);
     if (!enabled) setSelectedTimes((current) => current.slice(0, 1));
   }
 
   function selectTime(time: string) {
+    setHalfExtension(null);
     setSelectedTimes((current) => {
       if (!multiHour) return [time];
       return current.includes(time) ? current.filter((item) => item !== time) : sortTimes([...current, time]);
     });
   }
 
-  function updateCustomer(field: keyof CustomerDetails, value: string) {
+  function toggleHalfExtension(position: Exclude<HalfExtension, null>) {
+    if (multiHour || selectedTimes.length !== 1) return;
+    setHalfExtension((current) => current === position ? null : position);
+  }
+
+  function updateCustomer(field: keyof CustomerDetails, value: string | boolean) {
     setCustomer((current) => ({ ...current, [field]: value }));
   }
 
@@ -194,7 +247,9 @@ export default function CourtMapSection({ date }: { date: string }) {
       date,
       time: selectedTime,
       times: sortedSelectedTimes,
-      durationMinutes: selectedHourCount * 60,
+      timeLabel: formatSelectedTimes(sortedSelectedTimes, halfExtension),
+      durationMinutes: selectedDurationMinutes,
+      halfExtension,
       priceMdl: totalPriceMdl,
       depositMdl,
       remainingHours,
@@ -224,21 +279,22 @@ export default function CourtMapSection({ date }: { date: string }) {
           <AnimatePresence initial={false} mode="popLayout">
             {viewMode !== "schedule" ? (
               <motion.div key="map" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <MobileCourtPlan courts={courts} selectedCourtId={selectedCourtId} onSelect={selectCourt} />
-                <div className="hidden h-full md:block">
+                {isMobileViewport ? (
+                  <MobileCourtPlan courts={courts} selectedCourtId={selectedCourtId} onSelect={selectCourt} />
+                ) : (
                   <ClubMap courts={courts} viewMode={viewMode} selectedCourtId={selectedCourtId} onModeChange={setViewMode} onSelect={selectCourt} onFlattenComplete={() => { if (selectedCourtId && viewMode === "plan2d") setViewMode("schedule"); }} />
-                </div>
+                )}
               </motion.div>
             ) : selectedCourt ? (
               <motion.div key="schedule" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <Schedule court={selectedCourt} selectedTimes={sortedSelectedTimes} multiHour={multiHour} customer={customer} formTouched={formTouched} onMultiHourChange={toggleMultiHour} onSelectTime={selectTime} onBack={backToMap} onCustomerChange={updateCustomer} />
+                <Schedule court={selectedCourt} selectedTimes={sortedSelectedTimes} halfExtension={halfExtension} multiHour={multiHour} customer={customer} formTouched={formTouched} onMultiHourChange={toggleMultiHour} onSelectTime={selectTime} onHalfExtensionChange={toggleHalfExtension} onBack={backToMap} onCustomerChange={updateCustomer} />
               </motion.div>
             ) : null}
           </AnimatePresence>
         </div>
-        <BookingSummary court={selectedCourt} times={sortedSelectedTimes} multiHour={multiHour} date={date} customer={customer} customerComplete={customerComplete} formTouched={formTouched} totalPriceMdl={totalPriceMdl} depositMdl={depositMdl} remainingHours={remainingHours} remainingMdl={remainingMdl} loading={holding} onMultiHourChange={toggleMultiHour} onCustomerChange={updateCustomer} onContinue={continueBooking} />
+        <BookingSummary court={selectedCourt} times={sortedSelectedTimes} halfExtension={halfExtension} multiHour={multiHour} date={date} customer={customer} customerComplete={customerComplete} formTouched={formTouched} totalPriceMdl={totalPriceMdl} depositMdl={depositMdl} remainingHours={remainingHours} remainingMdl={remainingMdl} loading={holding} onMultiHourChange={toggleMultiHour} onCustomerChange={updateCustomer} onContinue={continueBooking} />
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-sand bg-white p-4 shadow-[0_-12px_40px_rgba(17,24,39,.12)] xl:hidden"><MobileSummary court={selectedCourt} times={sortedSelectedTimes} customerComplete={customerComplete} depositMdl={depositMdl} loading={holding} onContinue={continueBooking} /></div>
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-sand bg-white p-4 shadow-[0_-12px_40px_rgba(17,24,39,.12)] xl:hidden"><MobileSummary court={selectedCourt} times={sortedSelectedTimes} halfExtension={halfExtension} customerComplete={customerComplete} depositMdl={depositMdl} totalPriceMdl={totalPriceMdl} loading={holding} onContinue={continueBooking} /></div>
       <AnimatePresence>
         {showCustomerModal && selectedCourt && selectedTime && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] grid place-items-center bg-black/65 px-5 py-8 backdrop-blur-[5px]" onMouseDown={(event) => { if (event.currentTarget === event.target) closeCustomerModal(); }}>
@@ -269,40 +325,45 @@ function ClubMap({ courts, viewMode, selectedCourtId, onModeChange, onSelect, on
 }
 
 function MobileCourtPlan({ courts, selectedCourtId, onSelect }: { courts: MapCourt[]; selectedCourtId: string | null; onSelect: (court: MapCourt) => void }) {
-  const blueCourts = courts.filter((court) => court.color === "blue");
-  const terracottaCourts = courts.filter((court) => court.color === "terracotta");
+  const blueCourts = ["court-5", "court-4", "court-3", "court-2", "court-1", "court-6"]
+    .map((id) => courts.find((court) => court.id === id))
+    .filter(Boolean) as MapCourt[];
+  const terracottaCourts = ["court-9", "court-8", "court-7"]
+    .map((id) => courts.find((court) => court.id === id))
+    .filter(Boolean) as MapCourt[];
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-[30px] border border-white/30 bg-terracotta md:hidden">
-      <div className="flex items-start justify-between gap-3 border-b border-white/25 px-4 py-4">
-        <div>
-          <h2 className="text-lg font-black text-white">Карта PadelPoint</h2>
-          <p className="mt-1 text-xs font-bold text-white/70">Вертикальный 2D-план · 9 indoor-кортов</p>
+    <div className="h-full overflow-hidden rounded-[30px] border border-white/30 bg-terracotta p-2 md:hidden">
+      <div className="relative h-full overflow-hidden rounded-[24px] bg-[#E9ECE7] p-2 shadow-inner">
+        <div className="absolute inset-y-0 left-[41%] w-2 bg-terracotta" />
+        <div className="absolute inset-y-0 right-[22%] w-px bg-primary/20" />
+        <div className="absolute inset-y-0 right-0 w-[21%] bg-[#E4E8E2]" />
+        <div className="absolute right-[4%] top-7 grid gap-5">
+          {Array.from({ length: 10 }, (_, index) => (
+            <span key={index} className="h-9 w-5 rounded-[3px] border border-primary/10 bg-[#DCE5E3]" />
+          ))}
         </div>
-        <span className="rounded-full bg-lime px-3 py-2 text-[10px] font-black text-[#050505]">500 MDL / час</span>
-      </div>
+        <div className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-full bg-white px-2 py-4 text-[10px] font-black uppercase tracking-[.12em] text-primary shadow-lg [writing-mode:vertical-rl]">
+          Вход и reception
+        </div>
 
-      <div className="flex-1 p-3">
-        <div className="relative h-full overflow-hidden rounded-[26px] border border-[#d2c8bd] bg-[#ECE7DD] p-3 shadow-inner">
-          <div className="absolute inset-x-5 top-4 h-8 rounded-full bg-[#d8d2c4]" />
-          <div className="absolute inset-x-5 bottom-4 h-8 rounded-full bg-[#d8d2c4]" />
-          <div className="absolute bottom-12 left-4 top-14 w-5 rounded-full bg-white/80 shadow-sm" />
-          <div className="absolute bottom-12 right-4 top-14 w-5 rounded-full bg-white/80 shadow-sm" />
+        <div className="relative z-10 grid h-full grid-cols-[40%_1fr] gap-3">
+          <div className="flex h-full flex-col justify-between rounded-sm bg-white p-2 shadow-[0_8px_22px_rgba(17,24,39,.14)]">
+            {blueCourts.map((court) => (
+              <MobileCourtTile key={court.id} court={court} selected={selectedCourtId === court.id} onSelect={onSelect} variant="blue" />
+            ))}
+          </div>
 
-          <div className="relative z-10 flex h-full flex-col gap-3">
-            <div className="grid grid-cols-2 gap-2">
-              {blueCourts.map((court) => (
-                <MobileCourtTile key={court.id} court={court} selected={selectedCourtId === court.id} onSelect={onSelect} />
+          <div className="relative pl-2 pr-[24%]">
+            <div className="absolute inset-y-3 left-0 w-1 bg-terracotta" />
+            <div className="absolute inset-y-8 left-2 grid w-2 grid-rows-6">
+              {Array.from({ length: 6 }, (_, index) => (
+                <span key={index} className="self-center border-t-4 border-[#CBD0CB]" />
               ))}
             </div>
-
-            <div className="grid min-h-12 place-items-center rounded-2xl border border-dashed border-[#c8beb2] bg-[#D8D2C4]/70 px-3 text-center text-[10px] font-black uppercase tracking-[.16em] text-primary/55">
-              Walkway · entrance · reception
-            </div>
-
-            <div className="grid grid-cols-1 gap-2">
+            <div className="flex h-full flex-col justify-center gap-10">
               {terracottaCourts.map((court) => (
-                <MobileCourtTile key={court.id} court={court} selected={selectedCourtId === court.id} onSelect={onSelect} wide />
+                <MobileCourtTile key={court.id} court={court} selected={selectedCourtId === court.id} onSelect={onSelect} variant="terracotta" />
               ))}
             </div>
           </div>
@@ -312,20 +373,25 @@ function MobileCourtPlan({ courts, selectedCourtId, onSelect }: { courts: MapCou
   );
 }
 
-function MobileCourtTile({ court, selected, wide = false, onSelect }: { court: MapCourt; selected: boolean; wide?: boolean; onSelect: (court: MapCourt) => void }) {
+function MobileCourtTile({ court, selected, variant, onSelect }: { court: MapCourt; selected: boolean; variant: CourtColor; onSelect: (court: MapCourt) => void }) {
   const available = court.slots.filter((slot) => slot.status === "available").length;
+  const isTerracotta = variant === "terracotta";
 
   return (
     <motion.button
+      layoutId={`court-${court.id}`}
       type="button"
       onClick={() => onSelect(court)}
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
       whileTap={{ scale: 0.98 }}
-      className={`relative min-h-[76px] overflow-hidden rounded-[16px] border-[3px] p-1.5 text-left shadow-[0_8px_18px_rgba(38,46,50,.14)] outline-none transition ${wide ? "min-h-[70px]" : ""} ${court.color === "blue" ? "bg-[#1268B3]" : "bg-[#B95F42]"} ${selected ? "border-lime ring-4 ring-lime/40" : "border-white/90 active:border-lime"}`}
+      transition={{ type: "spring", stiffness: 260, damping: 24 }}
+      className={`relative overflow-hidden border-[4px] border-white/95 p-1.5 text-left outline-none transition ${isTerracotta ? "aspect-[1.04/1] w-full rounded-[8px]" : "aspect-[1.35/1] w-full rounded-[7px]"} ${isTerracotta ? "bg-[#B95F42]" : "bg-[#1268B3]"} ${selected ? "ring-4 ring-lime" : "shadow-[0_7px_16px_rgba(17,24,39,.18)] active:ring-4 active:ring-lime/70"}`}
       aria-label={`Открыть расписание ${court.name}`}
     >
       <CourtLines />
-      <span className={`absolute left-2 top-2 z-10 rounded-full px-2 py-1 text-[10px] font-black leading-none ${selected ? "bg-lime text-[#050505]" : "bg-[#050505] text-white"}`}>{court.label}</span>
-      <span className="absolute bottom-2 right-2 z-10 rounded-full bg-white/90 px-2 py-1 text-[10px] font-black text-primary">{available} сл.</span>
+      <span className={`absolute z-10 rounded-full px-1.5 py-1 text-[9px] font-black leading-none ${isTerracotta ? "bottom-1 left-1" : "left-1 top-1/2 -translate-y-1/2 -rotate-90"} ${selected ? "bg-lime text-[#050505]" : "bg-[#050505] text-white"}`}>{court.label}</span>
+      <span className="sr-only">{available} свободных слотов</span>
     </motion.button>
   );
 }
@@ -344,16 +410,31 @@ function CourtLines() { return <span className="pointer-events-none absolute ins
 function Floating({ title, className }: { title: string; className: string }) { return <div className={`pointer-events-none absolute z-10 rounded-full bg-lime px-4 py-2 text-[11px] font-black text-[#050505] shadow-lg ${className}`}>{title}</div>; }
 function Mode({ active, label, icon, onClick }: { active: boolean; label: string; icon: React.ReactNode; onClick: () => void }) { return <button type="button" onClick={onClick} className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-[11px] font-black ${active ? "bg-lime text-[#050505]" : "text-white/75"}`}>{icon}{label}</button>; }
 
-function Schedule({ court, selectedTimes, multiHour, customer, formTouched, onMultiHourChange, onSelectTime, onBack, onCustomerChange }: { court: MapCourt; selectedTimes: string[]; multiHour: boolean; customer: CustomerDetails; formTouched: boolean; onMultiHourChange: (enabled: boolean) => void; onSelectTime: (time: string) => void; onBack: () => void; onCustomerChange: (field: keyof CustomerDetails, value: string) => void }) {
-  return <div className="h-full overflow-y-auto rounded-[30px] border border-sand bg-white shadow-soft"><div className="flex items-center gap-3 border-b border-sand p-5"><button type="button" onClick={onBack} aria-label="Вернуться к карте" className="grid h-10 w-10 place-items-center rounded-full bg-[#050505] text-white"><ArrowLeft size={18} /></button><motion.div layoutId={`court-${court.id}`} className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 border-white/80 ${court.color === "blue" ? "bg-[#1268B3]" : "bg-[#B95F42]"}`}><CourtLines /></motion.div><div><h3 className="font-black text-primary">{court.name}</h3><p className="mt-1 text-xs text-gray-400">Indoor · 500 MDL · 60 минут</p></div></div><div className="p-5"><div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h4 className="font-black text-primary">Выберите время</h4><p className="mt-1 text-xs text-gray-400">Ежедневно с 07:00 до 22:00</p></div><MultiHourToggle enabled={multiHour} onChange={onMultiHourChange} /></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{court.slots.map((slot) => { const disabled = slot.status !== "available"; const selected = selectedTimes.includes(slot.time); return <button key={slot.time} type="button" disabled={disabled} onClick={() => onSelectTime(slot.time)} className={`min-h-[64px] rounded-2xl border px-3 py-2 text-left transition ${selected ? "border-[#050505] bg-lime text-[#050505] ring-2 ring-[#050505]" : disabled ? "cursor-not-allowed border-gray-100 bg-gray-100 text-gray-400" : "border-sand bg-white text-primary hover:border-terracotta"}`}><b className="block text-sm">{slot.time}</b><small className="mt-1 block font-bold">{selected ? "Выбрано" : slot.status === "available" ? "500 MDL" : slot.status === "held" ? "Удерживается" : slot.status === "past" ? "Прошло" : "Занято"}</small></button>; })}</div>{selectedTimes.length > 0 && <div id="booking-customer-fields" className="mt-6 rounded-[24px] border border-sand bg-canvas p-5 xl:hidden"><CustomerFields customer={customer} formTouched={formTouched} onChange={onCustomerChange} /></div>}</div></div>;
+function Schedule({ court, selectedTimes, halfExtension, multiHour, customer, formTouched, onMultiHourChange, onSelectTime, onHalfExtensionChange, onBack, onCustomerChange }: { court: MapCourt; selectedTimes: string[]; halfExtension: HalfExtension; multiHour: boolean; customer: CustomerDetails; formTouched: boolean; onMultiHourChange: (enabled: boolean) => void; onSelectTime: (time: string) => void; onHalfExtensionChange: (position: Exclude<HalfExtension, null>) => void; onBack: () => void; onCustomerChange: (field: keyof CustomerDetails, value: string | boolean) => void }) {
+  const baseTime = !multiHour && selectedTimes.length === 1 ? selectedTimes[0] : null;
+
+  return <div className="h-full overflow-y-auto rounded-[30px] border border-sand bg-white shadow-soft"><div className="flex items-center gap-3 border-b border-sand p-5"><button type="button" onClick={onBack} aria-label="Вернуться к карте" className="grid h-10 w-10 place-items-center rounded-full bg-[#050505] text-white"><ArrowLeft size={18} /></button><motion.div layoutId={`court-${court.id}`} className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 border-white/80 ${court.color === "blue" ? "bg-[#1268B3]" : "bg-[#B95F42]"}`}><CourtLines /></motion.div><div><h3 className="font-black tracking-[-.03em] text-primary">{court.name}</h3><p className="mt-1 text-xs font-bold text-gray-400">Indoor · 500 MDL / час · +30 мин = 250 MDL</p></div></div><div className="p-5"><div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><h4 className="text-lg font-black tracking-[-.035em] text-primary">Выберите время</h4><p className="mt-1 text-xs font-bold text-gray-400">Выберите час, затем можно добавить соседние 30 минут слева или справа.</p></div><MultiHourToggle enabled={multiHour} onChange={onMultiHourChange} /></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{court.slots.map((slot) => { const disabled = slot.status !== "available"; const selected = selectedTimes.includes(slot.time); const halfBefore = Boolean(baseTime && slot.time === previousHour(baseTime)); const halfAfter = Boolean(baseTime && slot.time === nextHour(baseTime)); if (halfBefore || halfAfter) return <HalfSlotButton key={slot.time} slot={slot} position={halfBefore ? "before" : "after"} active={halfExtension === (halfBefore ? "before" : "after")} disabled={!canUseHalfExtension(court, baseTime!, halfBefore ? "before" : "after")} onClick={onHalfExtensionChange} />; return <button key={slot.time} type="button" disabled={disabled} onClick={() => onSelectTime(slot.time)} className={`min-h-[64px] rounded-2xl border px-3 py-2 text-left transition ${selected ? "border-[#050505] bg-lime text-[#050505] ring-2 ring-[#050505]" : disabled ? "cursor-not-allowed border-gray-100 bg-gray-100 text-gray-400" : "border-sand bg-white text-primary hover:border-terracotta"}`}><b className="block text-sm">{slot.time}</b><small className="mt-1 block font-bold">{selected ? (halfExtension ? `Выбрано · ${formatBookingRange(slot.time, halfExtension)}` : "Выбрано") : slot.status === "available" ? "500 MDL" : slot.status === "held" ? "Удерживается" : slot.status === "past" ? "Прошло" : "Занято"}</small></button>; })}</div>{selectedTimes.length > 0 && <div id="booking-customer-fields" className="mt-6 rounded-[24px] border border-sand bg-canvas p-5 xl:hidden"><CustomerFields customer={customer} formTouched={formTouched} onChange={onCustomerChange} /></div>}</div></div>;
 }
 
-function BookingSummary({ court, times, multiHour, date, customer, customerComplete, formTouched, totalPriceMdl, depositMdl, remainingHours, remainingMdl, loading, onMultiHourChange, onCustomerChange, onContinue }: { court: MapCourt | null; times: string[]; multiHour: boolean; date: string; customer: CustomerDetails; customerComplete: boolean; formTouched: boolean; totalPriceMdl: number; depositMdl: number; remainingHours: number; remainingMdl: number; loading: boolean; onMultiHourChange: (enabled: boolean) => void; onCustomerChange: (field: keyof CustomerDetails, value: string) => void; onContinue: () => void }) {
-  const showDepositBreakdown = multiHour && times.length > 1;
-  return <aside className="sticky top-28 hidden rounded-[28px] border border-sand bg-white p-6 shadow-soft xl:block"><div className="flex items-start justify-between gap-3"><h3 className="text-lg font-black text-primary">Ваша бронь</h3><MultiHourToggle enabled={multiHour} onChange={onMultiHourChange} /></div>{court && times.length ? <div className="mt-5"><div className="rounded-[22px] bg-terracotta p-5 text-white"><small className="text-white/70">PadelPoint</small><b className="mt-1 block text-lg">{court.name}</b><p className="mt-1 text-xs text-white/75">{date} · {formatSelectedTimes(times)}</p></div>{showDepositBreakdown ? <div className="my-5 space-y-3"><div className="rounded-2xl bg-canvas p-4 text-sm"><p className="flex justify-between font-black text-primary"><span>Предоплата сейчас</span><span>{depositMdl} MDL</span></p>{remainingHours > 0 && <p className="mt-2 flex justify-between text-xs font-bold text-terracotta"><span>Доплата в клубе: {remainingHours} ч.</span><span>{remainingMdl} MDL</span></p>}</div><div className="flex items-end justify-between"><span className="text-sm text-gray-500">Всего</span><b className="text-2xl font-black text-primary">{totalPriceMdl} MDL</b></div></div> : <div className="my-5 flex items-end justify-between"><span className="text-sm text-gray-500">К оплате</span><b className="text-2xl font-black text-primary">{totalPriceMdl} MDL</b></div>}<CustomerFields customer={customer} formTouched={formTouched} onChange={onCustomerChange} /><button type="button" onClick={onContinue} disabled={loading} className="group mt-5 flex min-h-14 w-full items-center justify-between rounded-full bg-lime py-1.5 pl-5 pr-1.5 text-sm font-black text-[#050505] disabled:bg-gray-200 disabled:text-gray-400 disabled:opacity-80"><span>{loading ? "Создаём бронь..." : showDepositBreakdown ? `Оплатить предоплату ${depositMdl} MDL` : "Перейти к оплате"}</span><span className="grid h-11 w-11 place-items-center rounded-full bg-[#050505] text-white">{loading ? <LoaderCircle size={17} className="animate-spin" /> : <ArrowRight size={17} />}</span></button><p className="mt-3 flex items-center justify-center gap-1 text-[10px] text-gray-400"><ShieldCheck size={12} /> Слот удерживается 10 минут</p></div> : <div className="mt-5 rounded-[22px] border border-dashed border-sand bg-canvas p-7 text-center"><Clock3 className="mx-auto text-primary/25" /><p className="mt-4 text-sm font-black text-primary">Выберите корт и время</p><p className="mt-2 text-xs text-gray-400">Итог появится здесь</p></div>}</aside>;
+function HalfSlotButton({ slot, position, active, disabled, onClick }: { slot: Slot; position: Exclude<HalfExtension, null>; active: boolean; disabled: boolean; onClick: (position: Exclude<HalfExtension, null>) => void }) {
+  const leftIsAction = position === "after";
+  const action = <button type="button" disabled={disabled} onClick={() => onClick(position)} className={`min-h-[64px] rounded-xl px-2 py-2 text-left text-[11px] font-black transition ${active ? "bg-lime text-[#050505] ring-2 ring-[#050505]" : disabled ? "cursor-not-allowed bg-gray-100 text-gray-400" : "bg-white text-primary hover:bg-lime/80"}`}><span className="block">+30 мин</span><span className="mt-1 block text-[10px]">250 MDL</span></button>;
+  const muted = <div className="min-h-[64px] rounded-xl bg-gray-100 px-2 py-2 text-[11px] font-bold text-gray-400"><span className="block">{slot.time}</span><span className="mt-1 block">½ слот</span></div>;
+
+  return (
+    <div className="grid grid-cols-2 gap-1 rounded-2xl border border-sand bg-canvas p-1">
+      {leftIsAction ? action : muted}
+      {leftIsAction ? muted : action}
+    </div>
+  );
 }
-function MobileSummary({ court, times, customerComplete, depositMdl, loading, onContinue }: { court: MapCourt | null; times: string[]; customerComplete: boolean; depositMdl: number; loading: boolean; onContinue: () => void }) {
-  return <div className="mx-auto flex max-w-3xl items-center gap-3"><div className="min-w-0 flex-1">{court && times.length ? <><p className="truncate text-xs text-gray-500">{customerComplete ? court.name : "Проверьте данные брони"}</p><b className="text-primary">{times.length > 1 ? `${times.length} ч. · предоплата ${depositMdl} MDL` : `${times[0]} · 500 MDL`}</b></> : <b className="text-sm text-primary">Выберите корт и время</b>}</div><button type="button" disabled={!court || !times.length || loading} onClick={onContinue} className="flex items-center gap-2 rounded-full bg-lime py-1.5 pl-5 pr-1.5 text-sm font-black text-[#050505] disabled:bg-gray-200 disabled:text-gray-400">{loading ? "Создаём..." : "Оплатить"}<span className="grid h-9 w-9 place-items-center rounded-full bg-[#050505] text-white"><ArrowRight size={15} /></span></button></div>;
+
+function BookingSummary({ court, times, halfExtension, multiHour, date, customer, formTouched, totalPriceMdl, depositMdl, remainingMdl, loading, onMultiHourChange, onCustomerChange, onContinue }: { court: MapCourt | null; times: string[]; halfExtension: HalfExtension; multiHour: boolean; date: string; customer: CustomerDetails; customerComplete: boolean; formTouched: boolean; totalPriceMdl: number; depositMdl: number; remainingHours: number; remainingMdl: number; loading: boolean; onMultiHourChange: (enabled: boolean) => void; onCustomerChange: (field: keyof CustomerDetails, value: string | boolean) => void; onContinue: () => void }) {
+  const showDepositBreakdown = remainingMdl > 0;
+  return <aside className="sticky top-28 hidden rounded-[28px] border border-sand bg-white p-6 shadow-soft xl:block"><div className="flex items-start justify-between gap-3"><h3 className="text-lg font-black tracking-[-.035em] text-primary">Ваша бронь</h3><MultiHourToggle enabled={multiHour} onChange={onMultiHourChange} /></div>{court && times.length ? <div className="mt-5"><div className="rounded-[22px] bg-terracotta p-5 text-white"><small className="text-white/70">PadelPoint</small><b className="mt-1 block text-lg">{court.name}</b><p className="mt-1 text-xs text-white/75">{date} · {formatSelectedTimes(times, halfExtension)}</p></div>{showDepositBreakdown ? <div className="my-5 space-y-3"><div className="rounded-2xl bg-canvas p-4 text-sm"><p className="flex justify-between font-black text-primary"><span>Предоплата сейчас</span><span>{depositMdl} MDL</span></p><p className="mt-2 flex justify-between text-xs font-bold text-terracotta"><span>Доплата в клубе</span><span>{formatRemainingPayment(remainingMdl)}</span></p></div><div className="flex items-end justify-between"><span className="text-sm text-gray-500">Всего</span><b className="text-2xl font-black text-primary">{totalPriceMdl} MDL</b></div></div> : <div className="my-5 flex items-end justify-between"><span className="text-sm text-gray-500">К оплате</span><b className="text-2xl font-black text-primary">{totalPriceMdl} MDL</b></div>}<CustomerFields customer={customer} formTouched={formTouched} onChange={onCustomerChange} /><button type="button" onClick={onContinue} disabled={loading} className="group mt-5 flex min-h-14 w-full items-center justify-between rounded-full bg-lime py-1.5 pl-5 pr-1.5 text-sm font-black text-[#050505] disabled:bg-gray-200 disabled:text-gray-400 disabled:opacity-80"><span>{loading ? "Создаём бронь..." : showDepositBreakdown ? `Оплатить предоплату ${depositMdl} MDL` : "Перейти к оплате"}</span><span className="grid h-11 w-11 place-items-center rounded-full bg-[#050505] text-white">{loading ? <LoaderCircle size={17} className="animate-spin" /> : <ArrowRight size={17} />}</span></button><p className="mt-3 flex items-center justify-center gap-1 text-[10px] text-gray-400"><ShieldCheck size={12} /> Слот удерживается 10 минут</p></div> : <div className="mt-5 rounded-[22px] border border-dashed border-sand bg-canvas p-7 text-center"><Clock3 className="mx-auto text-primary/25" /><p className="mt-4 text-sm font-black text-primary">Выберите корт и время</p><p className="mt-2 text-xs text-gray-400">Итог появится здесь</p></div>}</aside>;
+}
+function MobileSummary({ court, times, halfExtension, customerComplete, depositMdl, totalPriceMdl, loading, onContinue }: { court: MapCourt | null; times: string[]; halfExtension: HalfExtension; customerComplete: boolean; depositMdl: number; totalPriceMdl: number; loading: boolean; onContinue: () => void }) {
+  return <div className="mx-auto flex max-w-3xl items-center gap-3"><div className="min-w-0 flex-1">{court && times.length ? <><p className="truncate text-xs text-gray-500">{customerComplete ? court.name : "Проверьте данные брони"}</p><b className="text-primary">{formatSelectedTimes(times, halfExtension)} · {totalPriceMdl > depositMdl ? `предоплата ${depositMdl} MDL` : `${totalPriceMdl} MDL`}</b></> : <b className="text-sm text-primary">Выберите корт и время</b>}</div><button type="button" disabled={!court || !times.length || loading} onClick={onContinue} className="flex items-center gap-2 rounded-full bg-lime py-1.5 pl-5 pr-1.5 text-sm font-black text-[#050505] disabled:bg-gray-200 disabled:text-gray-400">{loading ? "Создаём..." : "Оплатить"}<span className="grid h-9 w-9 place-items-center rounded-full bg-[#050505] text-white"><ArrowRight size={15} /></span></button></div>;
 }
 
 function MultiHourToggle({ enabled, onChange }: { enabled: boolean; onChange: (enabled: boolean) => void }) {
@@ -365,11 +446,12 @@ function MultiHourToggle({ enabled, onChange }: { enabled: boolean; onChange: (e
   );
 }
 
-function CustomerFields({ customer, formTouched, onChange }: { customer: CustomerDetails; formTouched: boolean; onChange: (field: keyof CustomerDetails, value: string) => void }) {
+function CustomerFields({ customer, formTouched, onChange }: { customer: CustomerDetails; formTouched: boolean; onChange: (field: keyof CustomerDetails, value: string | boolean) => void }) {
   const fullNameInvalid = Boolean(customer.fullName) && !isFullNameValid(customer.fullName);
   const phoneInvalid = Boolean(customer.phone) && !isPhoneValid(customer.phone);
   const emailInvalid = Boolean(customer.email) && !isEmailValid(customer.email);
   const guestsInvalid = Boolean(customer.guests) && !isGuestsValid(customer.guests);
+  const policyInvalid = formTouched && !customer.acceptedPolicy;
 
   return (
     <div>
@@ -383,6 +465,17 @@ function CustomerFields({ customer, formTouched, onChange }: { customer: Custome
         <CustomerField label="Email" value={customer.email} placeholder="name@email.com" type="email" inputMode="email" required invalid={emailInvalid || (formTouched && !isEmailValid(customer.email))} hint="Неправильный email. Пример: name@email.com" onChange={(value) => onChange("email", value)} />
         <CustomerField label="Количество игроков" value={customer.guests} placeholder="2" type="number" min={2} max={8} required invalid={guestsInvalid || (formTouched && !isGuestsValid(customer.guests))} hint="Минимальное количество игроков — 2" onChange={(value) => onChange("guests", value)} />
       </div>
+      <label className={`mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border bg-white p-3 text-xs font-bold leading-5 transition ${policyInvalid ? "border-red-300 ring-2 ring-red-100" : "border-sand"}`}>
+        <input type="checkbox" checked={customer.acceptedPolicy} onChange={(event) => onChange("acceptedPolicy", event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-[#050505]" />
+        <span>
+          Я согласен с условиями обработки данных и{" "}
+          <a href="https://padelpoint.md/privacy-policy/" target="_blank" rel="noreferrer" className="font-black text-terracotta underline underline-offset-2">
+            публичной офертой / политикой конфиденциальности
+          </a>
+          .
+        </span>
+      </label>
+      {policyInvalid && <span className="mt-1.5 block text-[10px] font-bold text-red-600">Подтвердите согласие с политикой перед оплатой.</span>}
       {(formTouched && !isCustomerComplete(customer)) && <p className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">Введены неправильные данные. Проверьте поля с красной обводкой.</p>}
     </div>
   );

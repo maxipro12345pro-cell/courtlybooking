@@ -16,6 +16,7 @@ interface HeldBooking {
   depositMdl?: number;
   remainingHours?: number;
   remainingMdl?: number;
+  timeLabel?: string;
   status: string;
   holdExpiresAt: string;
   customer?: {
@@ -29,11 +30,13 @@ interface HeldBooking {
 export default function CheckoutClient({ bookingId }: { bookingId: string }) {
   const router = useRouter();
   const [booking, setBooking] = useState<HeldBooking | null>(null);
+  const [resolvedBookingId, setResolvedBookingId] = useState(bookingId);
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const resolvedBookingId = bookingId || new URLSearchParams(window.location.search).get("bookingId") || "";
+    setResolvedBookingId(resolvedBookingId);
     const raw = sessionStorage.getItem(`booking:${resolvedBookingId}`);
     if (raw) setBooking(JSON.parse(raw));
   }, [bookingId]);
@@ -46,37 +49,37 @@ export default function CheckoutClient({ bookingId }: { bookingId: string }) {
       const created = await fetch("/api/payments/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingId }),
+        body: JSON.stringify({ bookingId: resolvedBookingId }),
       });
       if (!created.ok) throw new Error("Не удалось создать платёж");
       const { payment } = await created.json();
       const confirmed = await fetch("/api/payments/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ providerPaymentId: payment.providerPaymentId, bookingId }),
+        body: JSON.stringify({ providerPaymentId: payment.providerPaymentId, bookingId: resolvedBookingId }),
       });
       if (!confirmed.ok) throw new Error("Платёж не подтверждён");
       const result = await confirmed.json();
       const completed = { ...booking, status: "confirmed", paymentId: payment.id, paymentStatus: result.paymentStatus };
-      sessionStorage.setItem(`booking:${bookingId}`, JSON.stringify(completed));
+      sessionStorage.setItem(`booking:${resolvedBookingId}`, JSON.stringify(completed));
       const existing = JSON.parse(localStorage.getItem("padelpoint:bookings") || "[]");
       localStorage.setItem(
         "padelpoint:bookings",
-        JSON.stringify([completed, ...existing.filter((item: { id: string }) => item.id !== bookingId)]),
+        JSON.stringify([completed, ...existing.filter((item: { id: string }) => item.id !== resolvedBookingId)]),
       );
-      router.push(`/payment-success?bookingId=${bookingId}&paymentId=${payment.id}`);
+      router.push(`/payment-success?bookingId=${resolvedBookingId}&paymentId=${payment.id}`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Ошибка оплаты");
       setPaying(false);
     }
   }
 
-  const selectedTimes = booking?.times?.length ? booking.times : booking ? [booking.time] : [];
   const depositMdl = booking?.depositMdl ?? 500;
   const totalMdl = booking?.priceMdl ?? 500;
   const remainingHours = booking?.remainingHours ?? 0;
   const remainingMdl = booking?.remainingMdl ?? 0;
-  const showDepositBreakdown = remainingHours > 0;
+  const showDepositBreakdown = remainingMdl > 0;
+  const timeLabel = booking?.timeLabel || (booking ? `${booking.time} · ${booking.durationMinutes ?? 60} минут` : "");
 
   if (!booking) {
     return <AppShell><main className="mx-auto max-w-2xl px-5 py-20 text-center"><p className="text-xs font-black uppercase tracking-wider text-terracotta">PadelPoint booking</p><h1 className="mt-3 text-4xl font-black tracking-[-.05em] text-primary">Бронь не найдена</h1><p className="mt-3 text-gray-500">Выберите корт и время перед оплатой.</p><a href="/booking" className="mt-7 inline-flex items-center gap-3 rounded-full bg-lime py-1.5 pl-6 pr-1.5 text-sm font-black text-[#050505]">Вернуться к карте <span className="grid h-10 w-10 place-items-center rounded-full bg-[#050505] text-white"><ArrowRight size={16} /></span></a></main></AppShell>;
@@ -115,10 +118,10 @@ export default function CheckoutClient({ bookingId }: { bookingId: string }) {
             <h2 className="mt-5 text-3xl font-black">{booking.courtName}</h2>
             <div className="mt-6 space-y-4 border-y border-white/30 py-5 text-sm">
               <p className="flex items-center gap-2 text-white/80"><CalendarDays size={16} />{booking.date}</p>
-              <p className="flex items-center gap-2 text-white/80"><Clock3 size={16} />{selectedTimes.length > 1 ? `${selectedTimes.length} часа: ${selectedTimes.join(", ")}` : `${booking.time} · 60 минут`}</p>
+              <p className="flex items-center gap-2 text-white/80"><Clock3 size={16} />{timeLabel}</p>
             </div>
             {booking.customer && <div className="mt-5 rounded-[22px] bg-white/12 p-4 text-xs leading-5 text-white/80"><b className="mb-2 block text-sm text-white">{booking.customer.fullName}</b><p>{booking.customer.phone}</p><p>{booking.customer.email}</p><p>Гостей: {booking.customer.guests}</p></div>}
-            {showDepositBreakdown ? <div className="mt-6 space-y-3"><div className="rounded-[18px] bg-white p-4 text-primary"><p className="flex justify-between text-sm font-black"><span>Предоплата сейчас</span><span>{depositMdl} MDL</span></p><p className="mt-2 flex justify-between text-xs font-bold text-terracotta"><span>Доплата в клубе: {remainingHours} ч.</span><span>{remainingMdl} MDL</span></p></div><div className="flex items-end justify-between"><span className="text-sm text-white/70">Итого</span><b className="text-3xl">{totalMdl} MDL</b></div></div> : <div className="mt-6 flex items-end justify-between"><span className="text-sm text-white/70">Итого</span><b className="text-3xl">{totalMdl} MDL</b></div>}
+            {showDepositBreakdown ? <div className="mt-6 space-y-3"><div className="rounded-[18px] bg-white p-4 text-primary"><p className="flex justify-between text-sm font-black"><span>Предоплата сейчас</span><span>{depositMdl} MDL</span></p><p className="mt-2 flex justify-between text-xs font-bold text-terracotta"><span>Доплата в клубе: {remainingHours.toLocaleString("ru-RU", { maximumFractionDigits: 1 })} ч.</span><span>{remainingMdl} MDL</span></p></div><div className="flex items-end justify-between"><span className="text-sm text-white/70">Итого</span><b className="text-3xl">{totalMdl} MDL</b></div></div> : <div className="mt-6 flex items-end justify-between"><span className="text-sm text-white/70">Итого</span><b className="text-3xl">{totalMdl} MDL</b></div>}
             <div className="mt-7 rounded-[22px] bg-white p-4 text-xs leading-5 text-primary">Слот удерживается 10 минут. Финальное подтверждение появится сразу после оплаты.</div>
           </aside>
         </div>
