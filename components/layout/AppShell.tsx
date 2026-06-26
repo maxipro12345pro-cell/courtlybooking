@@ -16,25 +16,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         className="sticky top-0 z-40 border-b border-sand bg-white/95 backdrop-blur"
       >
-        <div className="mx-auto grid min-h-[82px] max-w-[1380px] grid-cols-[1fr_auto] items-center gap-4 px-5 py-3 lg:min-h-[92px] lg:grid-cols-[1fr_auto_1fr] lg:px-8">
+        <div className="mx-auto grid min-h-[68px] max-w-[1380px] grid-cols-[1fr_auto] items-center gap-4 px-5 py-2 lg:min-h-[86px] lg:grid-cols-[1fr_auto_1fr] lg:px-8">
           <div className="hidden items-center gap-5 lg:flex">
             <HeaderInfo icon={<MapPin size={16} />} text={<>Кишинёв, бул. Дачия<br />58/12</>} />
             <HeaderInfo icon={<CalendarDays size={16} />} text={<>Пн-Вс · 08:00–<br />23:00</>} />
             <HeaderInfo icon={<Smartphone size={16} />} href="tel:+37378003100" text="+373 (78) 003100" />
           </div>
 
-          <a
-            href="/"
-            className="grid h-16 w-16 place-items-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-sand lg:mx-auto lg:h-24 lg:w-24"
-            aria-label="PadelPoint — бронирование"
-          >
-            <img src="/brand/padelpoint-logo.svg" alt="PadelPoint" className="h-[92%] w-[92%] rounded-full object-cover" />
+          <a href="/" className="flex items-center gap-3 lg:mx-auto" aria-label="PadelPoint — бронирование">
+            <span className="grid h-14 w-14 place-items-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-sand lg:h-20 lg:w-20">
+              <img src="/brand/padelpoint-logo.jpg" alt="PadelPoint" className="h-[92%] w-[92%] rounded-full object-cover" />
+            </span>
+            <span className="leading-none lg:hidden">
+              <span className="block text-[11px] font-black uppercase tracking-[.18em] text-terracotta">PadelPoint</span>
+              <span className="mt-1 block text-lg font-black tracking-[-.055em] text-primary">Booking</span>
+            </span>
           </a>
 
           <button
             type="button"
             onClick={() => setMobileMenuOpen((open) => !open)}
-            className="grid h-12 w-12 place-items-center justify-self-end rounded-full bg-[#050505] text-white lg:hidden"
+            className="grid h-11 w-11 place-items-center justify-self-end rounded-full bg-[#050505] text-white lg:hidden"
             aria-label="Открыть меню"
             aria-expanded={mobileMenuOpen}
           >
