@@ -19,15 +19,15 @@ interface MapCourt {
 }
 
 const positions = [
-  { x: 11, y: 7, width: 13, height: 31, level: "upper" as const },
-  { x: 25, y: 7, width: 13, height: 31, level: "upper" as const },
-  { x: 40, y: 7, width: 13, height: 31, level: "upper" as const },
-  { x: 55, y: 7, width: 13, height: 31, level: "upper" as const },
-  { x: 70, y: 7, width: 13, height: 31, level: "upper" as const },
-  { x: 84, y: 7, width: 13, height: 31, level: "upper" as const },
-  { x: 18, y: 48, width: 21, height: 29, level: "lower" as const },
-  { x: 42, y: 48, width: 21, height: 29, level: "lower" as const },
-  { x: 66, y: 48, width: 21, height: 29, level: "lower" as const },
+  { x: 7, y: 76, width: 31, height: 13, level: "upper" as const },
+  { x: 7, y: 62, width: 31, height: 13, level: "upper" as const },
+  { x: 7, y: 47, width: 31, height: 13, level: "upper" as const },
+  { x: 7, y: 32, width: 31, height: 13, level: "upper" as const },
+  { x: 7, y: 17, width: 31, height: 13, level: "upper" as const },
+  { x: 7, y: 3,  width: 31, height: 13, level: "upper" as const },
+  { x: 48, y: 61, width: 29, height: 21, level: "lower" as const },
+  { x: 48, y: 37, width: 29, height: 21, level: "lower" as const },
+  { x: 48, y: 13, width: 29, height: 21, level: "lower" as const },
 ];
 
 const courts: MapCourt[] = COURT_SEED.map((court, index) => ({
