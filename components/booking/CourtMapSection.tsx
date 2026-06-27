@@ -428,7 +428,7 @@ function MobileCourtTile({ court, selected, variant, onSelect }: { court: MapCou
       animate={{ opacity: 1, y: 0 }}
       whileTap={{ scale: 0.98 }}
       transition={{ type: "spring", stiffness: 260, damping: 24 }}
-      className={`relative h-full min-h-0 overflow-hidden border-[4px] border-white/95 p-1.5 text-left outline-none transition ${isTerracotta ? "aspect-[1.04/1] w-full place-self-center rounded-[8px]" : "w-full rounded-[7px]"} ${isTerracotta ? "bg-[#B95F42]" : "bg-[#1268B3]"} ${selected ? "ring-4 ring-lime" : "shadow-[0_7px_16px_rgba(17,24,39,.18)] active:ring-4 active:ring-lime/70"}`}
+      className={`relative h-full min-h-0 overflow-hidden border-[4px] border-white/95 p-1.5 text-left outline-none transition ${isTerracotta ? "aspect-[1.04/1] w-full place-self-center rounded-[8px]" : "w-[112%] max-w-none origin-left rounded-[7px]"} ${isTerracotta ? "bg-[#B95F42]" : "bg-[#1268B3]"} ${selected ? "ring-4 ring-lime" : "shadow-[0_7px_16px_rgba(17,24,39,.18)] active:ring-4 active:ring-lime/70"}`}
       aria-label={`Открыть расписание ${court.name}`}
     >
       <CourtLines />
