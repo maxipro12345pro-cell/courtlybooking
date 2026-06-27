@@ -24,7 +24,7 @@ const positions = [
   { x: 40, y: 7, width: 13, height: 31, level: "upper" as const },
   { x: 55, y: 7, width: 13, height: 31, level: "upper" as const },
   { x: 70, y: 7, width: 13, height: 31, level: "upper" as const },
-  { x: 85, y: 7, width: 13, height: 31, level: "upper" as const },
+  { x: 84, y: 7, width: 12, height: 31, level: "upper" as const },
   { x: 18, y: 48, width: 21, height: 29, level: "lower" as const },
   { x: 42, y: 48, width: 21, height: 29, level: "lower" as const },
   { x: 66, y: 48, width: 21, height: 29, level: "lower" as const },
@@ -428,7 +428,7 @@ function MobileCourtTile({ court, selected, variant, onSelect }: { court: MapCou
       animate={{ opacity: 1, y: 0 }}
       whileTap={{ scale: 0.98 }}
       transition={{ type: "spring", stiffness: 260, damping: 24 }}
-      className={`relative h-full min-h-0 overflow-hidden border-[4px] border-white/95 p-1.5 text-left outline-none transition ${isTerracotta ? "aspect-[1.04/1] w-full place-self-center rounded-[8px]" : "w-[112%] max-w-none origin-left rounded-[7px]"} ${isTerracotta ? "bg-[#B95F42]" : "bg-[#1268B3]"} ${selected ? "ring-4 ring-lime" : "shadow-[0_7px_16px_rgba(17,24,39,.18)] active:ring-4 active:ring-lime/70"}`}
+      className={`relative h-full min-h-0 overflow-hidden border-[4px] border-white/95 p-1.5 text-left outline-none transition ${isTerracotta ? "aspect-[1.04/1] w-full place-self-center rounded-[8px]" : "w-full rounded-[7px]"} ${isTerracotta ? "bg-[#B95F42]" : "bg-[#1268B3]"} ${selected ? "ring-4 ring-lime" : "shadow-[0_7px_16px_rgba(17,24,39,.18)] active:ring-4 active:ring-lime/70"}`}
       aria-label={`Открыть расписание ${court.name}`}
     >
       <CourtLines />
