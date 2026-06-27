@@ -24,7 +24,7 @@ const positions = [
   { x: 40, y: 7, width: 13, height: 31, level: "upper" as const },
   { x: 55, y: 7, width: 13, height: 31, level: "upper" as const },
   { x: 70, y: 7, width: 13, height: 31, level: "upper" as const },
-  { x: 84, y: 7, width: 12, height: 31, level: "upper" as const },
+  { x: 84, y: 7, width: 13, height: 31, level: "upper" as const },
   { x: 18, y: 48, width: 21, height: 29, level: "lower" as const },
   { x: 42, y: 48, width: 21, height: 29, level: "lower" as const },
   { x: 66, y: 48, width: 21, height: 29, level: "lower" as const },
@@ -367,6 +367,27 @@ function ClubMap({ courts, viewMode, selectedCourtId, onModeChange, onSelect, on
 }
 
 function MobileCourtPlan({ courts, selectedCourtId, onSelect }: { courts: MapCourt[]; selectedCourtId: string | null; onSelect: (court: MapCourt) => void }) {
+  return (
+    <div className="flex h-full items-start overflow-hidden rounded-[30px] border border-white/30 bg-terracotta p-1.5 md:hidden">
+      <div className="relative mx-auto mt-3 aspect-[1.85] w-full max-w-[760px] overflow-hidden rounded-[24px] bg-[#E9ECE7] shadow-inner">
+        <div className="absolute bottom-[4%] left-[3%] h-[20%] w-[94%] border border-[#c5c9c3] bg-[#E5E7E2] shadow-[0_20px_28px_rgba(62,68,70,.18)]" />
+        <div className="absolute left-[8%] top-[43%] h-[35%] w-[82%] border border-[#bcc2c3] bg-[#dfe2de] shadow-lg" />
+        <div className="absolute left-[7%] top-[4%] h-[38%] w-[90%] border border-[#c8ccc5] bg-[#f4f5f2] shadow-xl" />
+        <div className="absolute bottom-[8%] left-[8%] right-[8%] flex justify-between">
+          {Array.from({ length: 12 }, (_, index) => (
+            <span key={index} className="h-2.5 w-4 border border-[#aeb5b4] bg-[#d5e1e2]/75" />
+          ))}
+        </div>
+        <div className="absolute bottom-[3%] left-[41%] rounded-full bg-white px-2.5 py-1.5 text-[8px] font-black uppercase tracking-wider text-primary shadow-lg">
+          Вход и reception
+        </div>
+        {courts.map((court) => (
+          <MobilePlanCourt key={court.id} court={court} selected={selectedCourtId === court.id} onSelect={onSelect} />
+        ))}
+      </div>
+    </div>
+  );
+
   const blueCourts = ["court-1", "court-2", "court-3", "court-4", "court-5", "court-6"]
     .map((id) => courts.find((court) => court.id === id))
     .filter(Boolean) as MapCourt[];
@@ -412,6 +433,23 @@ function MobileCourtPlan({ courts, selectedCourtId, onSelect }: { courts: MapCou
         </div>
       </div>
     </div>
+  );
+}
+
+function MobilePlanCourt({ court, selected, onSelect }: { court: MapCourt; selected: boolean; onSelect: (court: MapCourt) => void }) {
+  return (
+    <motion.button
+      layoutId={`court-${court.id}`}
+      type="button"
+      onClick={() => onSelect(court)}
+      whileTap={{ scale: 0.98 }}
+      className={`absolute overflow-hidden rounded-[3px] border-2 border-white/90 p-[2px] text-left shadow-[0_7px_14px_rgba(17,24,39,.18)] outline-none ${court.color === "blue" ? "bg-[#1268B3]" : "bg-[#B95F42]"} ${selected ? "ring-4 ring-lime" : "active:ring-4 active:ring-lime/70"}`}
+      style={{ left: `${court.x}%`, top: `${court.y}%`, width: `${court.width}%`, height: `${court.height}%` }}
+      aria-label={`Открыть расписание ${court.name}`}
+    >
+      <CourtLines />
+      <span className={`absolute left-1 top-1 z-10 rounded-full px-1.5 py-0.5 text-[7px] font-black leading-none ${selected ? "bg-lime text-[#050505]" : "bg-[#050505] text-white"}`}>{court.label}</span>
+    </motion.button>
   );
 }
 
