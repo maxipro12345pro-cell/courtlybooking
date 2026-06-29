@@ -48,10 +48,31 @@ function isFullNameValid(value: string) {
   return /^[A-Za-zА-Яа-яЁёȘșȚțĂăÂâÎî'’-]{2,}(?:\s+[A-Za-zА-Яа-яЁёȘșȚțĂăÂâÎî'’-]{2,})+$/.test(value.trim());
 }
 
+interface PhoneCountry { code: string; flag: string; dial: string; name: string; localMin: number; localMax: number; example: string }
+
+const PHONE_COUNTRIES: PhoneCountry[] = [
+  { code: "MD", flag: "🇲🇩", dial: "+373", name: "Молдова",  localMin: 8, localMax: 8,  example: "+373 78 003 100" },
+  { code: "RO", flag: "🇷🇴", dial: "+40",  name: "Румыния",  localMin: 9, localMax: 9,  example: "+40 712 345 678" },
+  { code: "UA", flag: "🇺🇦", dial: "+380", name: "Украина",  localMin: 9, localMax: 9,  example: "+380 67 123 4567" },
+  { code: "EU", flag: "🇪🇺", dial: "+",    name: "Другая",   localMin: 6, localMax: 14, example: "+34 612 345 678" },
+];
+
+function detectPhoneCountry(value: string): PhoneCountry {
+  const trimmed = value.trim();
+  const specific = PHONE_COUNTRIES.find((country) => country.dial !== "+" && trimmed.startsWith(country.dial));
+  if (specific) return specific;
+  return PHONE_COUNTRIES[PHONE_COUNTRIES.length - 1];
+}
+
 function isPhoneValid(value: string) {
   const trimmed = value.trim();
-  const digits = trimmed.replace(/\D/g, "");
-  return /^\+?[\d\s().-]{8,20}$/.test(trimmed) && digits.length >= 8 && digits.length <= 15;
+  if (!trimmed.startsWith("+")) return false;
+  const allDigits = trimmed.replace(/\D/g, "");
+  if (allDigits.length < 7 || allDigits.length > 15) return false;
+  const country = detectPhoneCountry(trimmed);
+  if (country.dial === "+") return true;
+  const localDigits = trimmed.slice(country.dial.length).replace(/\D/g, "");
+  return localDigits.length >= country.localMin && localDigits.length <= country.localMax;
 }
 
 function isEmailValid(value: string) {
@@ -487,7 +508,7 @@ function Mode({ active, label, icon, onClick }: { active: boolean; label: string
 function Schedule({ court, selectedTimes, halfExtension, multiHour, customer, formTouched, onSelectTime, onHalfExtensionChange, onPreviousFullHour, onNextFullHour, onBack, onCustomerChange }: { court: MapCourt; selectedTimes: string[]; halfExtension: HalfExtension; multiHour: boolean; customer: CustomerDetails; formTouched: boolean; onSelectTime: (time: string) => void; onHalfExtensionChange: (position: Exclude<HalfExtension, null>) => void; onPreviousFullHour: () => void; onNextFullHour: () => void; onBack: () => void; onCustomerChange: (field: keyof CustomerDetails, value: string | boolean) => void }) {
   const baseTime = !multiHour && selectedTimes.length === 1 ? selectedTimes[0] : null;
 
-  return <div className="h-full overflow-y-auto rounded-[30px] border border-sand bg-white shadow-soft"><div className="flex items-center gap-3 border-b border-sand p-5"><button type="button" onClick={onBack} aria-label="Вернуться к карте" className="grid h-10 w-10 place-items-center rounded-full bg-[#050505] text-white"><ArrowLeft size={18} /></button><motion.div layoutId={`court-${court.id}`} className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 border-white/80 ${court.color === "blue" ? "bg-[#1268B3]" : "bg-[#B95F42]"}`}><CourtLines /></motion.div><div><h3 className="font-black tracking-[-.03em] text-primary">{court.name}</h3><p className="mt-1 text-xs font-bold text-gray-400">Indoor · 500 MDL / час · +30 мин = 250 MDL</p></div></div><div className="p-5"><div className="mb-5"><h4 className="text-lg font-black tracking-[-.035em] text-primary">Выберите время</h4><p className="mt-1 text-xs font-bold text-gray-400">Выберите час, затем можно добавить соседние 30 минут или полный час назад.</p></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{court.slots.map((slot) => { const disabled = slot.status !== "available"; const selected = selectedTimes.includes(slot.time); const halfBefore = Boolean(baseTime && slot.time === previousHour(baseTime)); const halfAfter = Boolean(baseTime && slot.time === nextHour(baseTime)); if (halfBefore || halfAfter) return <HalfSlotButton key={slot.time} slot={slot} position={halfBefore ? "before" : "after"} active={halfExtension === (halfBefore ? "before" : "after")} disabled={!canUseHalfExtension(court, baseTime!, halfBefore ? "before" : "after")} onClick={onHalfExtensionChange} onFullHour={halfBefore ? onPreviousFullHour : onNextFullHour} />; return <button key={slot.time} type="button" disabled={disabled} onClick={() => onSelectTime(slot.time)} className={`min-h-[64px] rounded-2xl border px-3 py-2 text-left transition ${selected ? "border-[#050505] bg-lime text-[#050505] ring-2 ring-[#050505]" : disabled ? "cursor-not-allowed border-gray-100 bg-gray-100 text-gray-400" : "border-sand bg-white text-primary hover:border-terracotta"}`}><b className="block text-sm">{slot.time}</b><small className="mt-1 block font-bold">{selected ? (halfExtension ? `Выбрано · ${formatBookingRange(slot.time, halfExtension)}` : "Выбрано") : slot.status === "available" ? "500 MDL" : slot.status === "held" ? "Удерживается" : slot.status === "past" ? "Прошло" : "Занято"}</small></button>; })}</div>{selectedTimes.length > 0 && <div id="booking-customer-fields" className="mx-auto mt-6 max-w-[680px] rounded-[28px] border border-sand bg-white p-4 shadow-sm sm:p-5 xl:hidden"><CustomerFields customer={customer} formTouched={formTouched} onChange={onCustomerChange} /></div>}</div></div>;
+  return <div className="h-full overflow-y-auto rounded-[30px] border border-sand bg-white shadow-soft"><div className="flex items-center gap-3 border-b border-sand p-5"><button type="button" onClick={onBack} aria-label="Вернуться к карте" className="grid h-10 w-10 place-items-center rounded-full bg-[#050505] text-white"><ArrowLeft size={18} /></button><motion.div layoutId={`court-${court.id}`} className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 border-white/80 ${court.color === "blue" ? "bg-[#1268B3]" : "bg-[#B95F42]"}`}><CourtLines /></motion.div><div><h3 className="font-black tracking-[-.03em] text-primary">{court.name}</h3><p className="mt-1 text-xs font-bold text-gray-400">Indoor · 500 MDL / час · +30 мин = 250 MDL</p></div></div><div className="p-5"><div className="mb-5"><h4 className="text-lg font-black tracking-[-.035em] text-primary">Выберите время</h4></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{court.slots.map((slot) => { const disabled = slot.status !== "available"; const selected = selectedTimes.includes(slot.time); const halfBefore = Boolean(baseTime && slot.time === previousHour(baseTime)); const halfAfter = Boolean(baseTime && slot.time === nextHour(baseTime)); if (halfBefore || halfAfter) return <HalfSlotButton key={slot.time} slot={slot} position={halfBefore ? "before" : "after"} active={halfExtension === (halfBefore ? "before" : "after")} disabled={!canUseHalfExtension(court, baseTime!, halfBefore ? "before" : "after")} onClick={onHalfExtensionChange} onFullHour={halfBefore ? onPreviousFullHour : onNextFullHour} />; return <button key={slot.time} type="button" disabled={disabled} onClick={() => onSelectTime(slot.time)} className={`min-h-[64px] rounded-2xl border px-3 py-2 text-left transition ${selected ? "border-[#050505] bg-lime text-[#050505] ring-2 ring-[#050505]" : disabled ? "cursor-not-allowed border-gray-100 bg-gray-100 text-gray-400" : "border-sand bg-white text-primary hover:border-terracotta"}`}><b className="block text-sm">{slot.time}</b><small className="mt-1 block font-bold">{selected ? (halfExtension ? `Выбрано · ${formatBookingRange(slot.time, halfExtension)}` : "Выбрано") : slot.status === "available" ? "500 MDL" : slot.status === "held" ? "Удерживается" : slot.status === "past" ? "Прошло" : "Занято"}</small></button>; })}</div>{selectedTimes.length > 0 && <div id="booking-customer-fields" className="mx-auto mt-6 max-w-[680px] rounded-[28px] border border-sand bg-white p-4 shadow-sm sm:p-5 xl:hidden"><CustomerFields customer={customer} formTouched={formTouched} onChange={onCustomerChange} /></div>}</div></div>;
 }
 
 function HalfSlotButton({ slot, position, active, disabled, onClick, onFullHour }: { slot: Slot; position: Exclude<HalfExtension, null>; active: boolean; disabled: boolean; onClick: (position: Exclude<HalfExtension, null>) => void; onFullHour?: () => void }) {
@@ -531,12 +552,12 @@ function CustomerFields({ customer, formTouched, onChange }: { customer: Custome
     <div>
       <div className="mb-3">
         <h4 className="text-sm font-black text-primary">Данные для брони</h4>
-        <p className="mt-1 text-xs text-gray-400">Эти поля обязательны для администратора клуба.</p>
+        <p className="mt-1 text-xs text-gray-400">Эти поля обязательны для оформления предоплаты.</p>
       </div>
       <div className="grid gap-3">
-        <CustomerField label="ФИО" value={customer.fullName} placeholder="Иван Петров" required invalid={fullNameInvalid || (formTouched && !isFullNameValid(customer.fullName))} hint="Неправильные данные: введите имя и фамилию" onChange={(value) => onChange("fullName", value)} />
-        <CustomerField label="Номер телефона" value={customer.phone} placeholder="+373 78 003100" type="tel" inputMode="tel" required invalid={phoneInvalid || (formTouched && !isPhoneValid(customer.phone))} hint="Неправильный формат телефона. Пример: +373 78 003100" onChange={(value) => onChange("phone", value)} />
-        <CustomerField label="Email" value={customer.email} placeholder="name@email.com" type="email" inputMode="email" required invalid={emailInvalid || (formTouched && !isEmailValid(customer.email))} hint="Неправильный email. Пример: name@email.com" onChange={(value) => onChange("email", value)} />
+        <CustomerField label="ФИО" value={customer.fullName} placeholder="Иван Петров" name="name" autoComplete="name" required invalid={fullNameInvalid || (formTouched && !isFullNameValid(customer.fullName))} hint="Неправильные данные: введите имя и фамилию" onChange={(value) => onChange("fullName", value)} />
+        <PhoneField value={customer.phone} invalid={phoneInvalid || (formTouched && !isPhoneValid(customer.phone))} hint="Неправильный формат телефона. Пример: +373 78 003 100" onChange={(value) => onChange("phone", value)} />
+        <CustomerField label="Email" value={customer.email} placeholder="name@email.com" type="email" inputMode="email" name="email" autoComplete="email" required invalid={emailInvalid || (formTouched && !isEmailValid(customer.email))} hint="Неправильный email. Пример: name@email.com" onChange={(value) => onChange("email", value)} />
         <CustomerField label="Количество игроков" value={customer.guests} placeholder="2" type="number" min={2} max={8} required invalid={guestsInvalid || (formTouched && !isGuestsValid(customer.guests))} hint="Минимальное количество игроков — 2" onChange={(value) => onChange("guests", value)} />
       </div>
       <label className={`mt-4 flex cursor-pointer items-start gap-3 rounded-2xl border bg-white p-3 text-xs font-bold leading-5 transition ${policyInvalid ? "border-red-300 ring-2 ring-red-100" : "border-sand"}`}>
@@ -555,11 +576,64 @@ function CustomerFields({ customer, formTouched, onChange }: { customer: Custome
   );
 }
 
-function CustomerField({ label, value, placeholder, type = "text", inputMode, min, max, required, invalid, hint, onChange }: { label: string; value: string; placeholder: string; type?: string; inputMode?: "search" | "text" | "email" | "tel" | "url" | "none" | "numeric" | "decimal"; min?: number; max?: number; required?: boolean; invalid?: boolean; hint?: string; onChange: (value: string) => void }) {
+function CustomerField({ label, value, placeholder, type = "text", inputMode, name, autoComplete, min, max, required, invalid, hint, onChange }: { label: string; value: string; placeholder: string; type?: string; inputMode?: "search" | "text" | "email" | "tel" | "url" | "none" | "numeric" | "decimal"; name?: string; autoComplete?: string; min?: number; max?: number; required?: boolean; invalid?: boolean; hint?: string; onChange: (value: string) => void }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-primary/55">{label}{required && <span className="text-terracotta"> *</span>}</span>
-      <input value={value} placeholder={placeholder} type={type} inputMode={inputMode} min={min} max={max} required={required} onChange={(event) => onChange(event.target.value)} className={`w-full rounded-2xl border bg-white px-4 py-3 text-sm font-bold text-primary outline-none transition focus:border-terracotta ${invalid ? "border-red-300 ring-2 ring-red-100" : "border-sand"}`} />
+      <input value={value} placeholder={placeholder} type={type} inputMode={inputMode} name={name} autoComplete={autoComplete} min={min} max={max} required={required} onChange={(event) => onChange(event.target.value)} className={`w-full rounded-2xl border bg-white px-4 py-3 text-sm font-bold text-primary outline-none transition focus:border-terracotta ${invalid ? "border-red-300 ring-2 ring-red-100" : "border-sand"}`} />
+      {invalid && hint && <span className="mt-1.5 block text-[10px] font-bold text-red-600">{hint}</span>}
+    </label>
+  );
+}
+
+function PhoneField({ value, invalid, hint, onChange }: { value: string; invalid: boolean; hint: string; onChange: (value: string) => void }) {
+  const [country, setCountry] = useState<PhoneCountry>(() => (value ? detectPhoneCountry(value) : PHONE_COUNTRIES[0]));
+
+  useEffect(() => {
+    if (!value) return;
+    const detected = detectPhoneCountry(value);
+    if (detected.code !== country.code) setCountry(detected);
+  }, [value, country.code]);
+
+  function handleCountryChange(code: string) {
+    const next = PHONE_COUNTRIES.find((option) => option.code === code) ?? PHONE_COUNTRIES[0];
+    setCountry(next);
+    const currentTrimmed = value.trim();
+    let localPart = "";
+    if (currentTrimmed.startsWith(country.dial) && country.dial !== "+") {
+      localPart = currentTrimmed.slice(country.dial.length).trim();
+    } else if (currentTrimmed.startsWith("+")) {
+      localPart = currentTrimmed.replace(/^\+\d{1,4}/, "").trim();
+    } else {
+      localPart = currentTrimmed.replace(/\D/g, "");
+    }
+    if (next.dial === "+") {
+      onChange(localPart ? `+${localPart.replace(/\D/g, "")}` : "");
+    } else {
+      onChange(localPart ? `${next.dial} ${localPart}` : next.dial);
+    }
+  }
+
+  function handleInputChange(raw: string) {
+    if (raw && !raw.startsWith("+") && /\d/.test(raw)) {
+      const digits = raw.replace(/\D/g, "");
+      onChange(country.dial === "+" ? `+${digits}` : `${country.dial} ${digits}`);
+      return;
+    }
+    onChange(raw);
+  }
+
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-primary/55">Номер телефона<span className="text-terracotta"> *</span></span>
+      <div className={`flex items-stretch overflow-hidden rounded-2xl border bg-white transition focus-within:border-terracotta ${invalid ? "border-red-300 ring-2 ring-red-100" : "border-sand"}`}>
+        <select value={country.code} onChange={(event) => handleCountryChange(event.target.value)} aria-label="Код страны" className="cursor-pointer appearance-none border-r border-sand bg-white pl-3 pr-2 text-sm font-bold text-primary outline-none">
+          {PHONE_COUNTRIES.map((option) => (
+            <option key={option.code} value={option.code}>{option.flag} {option.dial === "+" ? "+…" : option.dial}</option>
+          ))}
+        </select>
+        <input value={value} placeholder={country.example} type="tel" inputMode="tel" name="tel" autoComplete="tel" required onChange={(event) => handleInputChange(event.target.value)} className="min-w-0 flex-1 bg-white px-3 py-3 text-sm font-bold text-primary outline-none" />
+      </div>
       {invalid && hint && <span className="mt-1.5 block text-[10px] font-bold text-red-600">{hint}</span>}
     </label>
   );
