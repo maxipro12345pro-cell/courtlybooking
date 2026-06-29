@@ -25,9 +25,9 @@ const positions = [
   { x: 55, y: 7, width: 13, height: 31, level: "upper" as const },
   { x: 70, y: 7, width: 13, height: 31, level: "upper" as const },
   { x: 85, y: 7, width: 13, height: 31, level: "upper" as const },
-  { x: 18, y: 48, width: 21, height: 29, level: "lower" as const },
-  { x: 42, y: 48, width: 21, height: 29, level: "lower" as const },
-  { x: 66, y: 48, width: 21, height: 29, level: "lower" as const },
+  { x: 18, y: 45, width: 21, height: 29, level: "lower" as const },
+  { x: 42, y: 45, width: 21, height: 29, level: "lower" as const },
+  { x: 66, y: 45, width: 21, height: 29, level: "lower" as const },
 ];
 
 const courts: MapCourt[] = COURT_SEED.map((court, index) => ({
@@ -317,10 +317,10 @@ export default function CourtMapSection({ date }: { date: string }) {
         <MultiHourToggle enabled={multiHour} onChange={toggleMultiHour} />
       </div>
       <div className="grid items-start gap-5 rounded-[38px] bg-terracotta p-3 shadow-soft sm:p-5 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className={`relative min-w-0 ${viewMode === "schedule" ? "h-[1180px] md:h-[620px]" : "h-[min(760px,calc(100svh-175px))] min-h-[640px] md:h-[620px]"}`}>
+        <div className={`relative min-w-0 ${viewMode === "schedule" ? "h-[1180px] md:h-[620px]" : isMobileViewport ? "h-auto" : "h-[min(760px,calc(100svh-175px))] min-h-[640px] md:h-[620px]"}`}>
           <AnimatePresence initial={false} mode="popLayout">
             {viewMode !== "schedule" ? (
-              <motion.div key="map" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div key="map" className={isMobileViewport ? "relative" : "absolute inset-0"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 {isMobileViewport ? (
                   <MobileCourtPlan courts={courtsForDate} selectedCourtId={selectedCourtId} onSelect={selectCourt} />
                 ) : (
@@ -363,7 +363,38 @@ export default function CourtMapSection({ date }: { date: string }) {
 }
 
 function ClubMap({ courts, viewMode, selectedCourtId, onModeChange, onSelect, onFlattenComplete }: { courts: MapCourt[]; viewMode: "map3d" | "plan2d"; selectedCourtId: string | null; onModeChange: (mode: "map3d" | "plan2d") => void; onSelect: (court: MapCourt) => void; onFlattenComplete: () => void }) {
-  return <div className="flex h-full flex-col overflow-hidden rounded-[30px] border border-white/30 bg-terracotta"><div className="flex items-center justify-between border-b border-white/30 px-5 py-3"><div><h2 className="font-black text-white">Карта PadelPoint</h2><p className="mt-1 text-xs text-white/70">9 indoor-кортов · 500 MDL / час</p></div><div className="flex rounded-full bg-white/15 p-1"><Mode active={viewMode === "map3d"} label="3D" icon={<Layers3 size={14} />} onClick={() => onModeChange("map3d")} /><Mode active={viewMode === "plan2d"} label="План" icon={<Map size={14} />} onClick={() => onModeChange("plan2d")} /></div></div><div className="relative flex-1 overflow-hidden bg-terracotta p-3 [perspective:1500px]"><motion.div animate={{ rotateX: viewMode === "map3d" ? 34 : 0, rotateZ: viewMode === "map3d" ? -12 : 0, scale: viewMode === "map3d" ? .82 : .9 }} transition={{ type: "spring", stiffness: 110, damping: 22 }} onAnimationComplete={() => { if (viewMode === "plan2d" && selectedCourtId) onFlattenComplete(); }} className="relative z-20 mx-auto aspect-[1.85] h-full max-w-full [transform-style:preserve-3d]"><Building dimmed={Boolean(selectedCourtId)} /><Columns dimmed={Boolean(selectedCourtId)} />{courts.map((court) => <CourtZone key={court.id} court={court} selected={selectedCourtId === court.id} dimmed={Boolean(selectedCourtId && selectedCourtId !== court.id)} onSelect={onSelect} />)}<div className="absolute bottom-[4%] left-[43%] flex items-center gap-2 rounded-full bg-white px-3 py-2 text-[9px] font-black uppercase tracking-wider text-primary shadow-lg [transform:translateZ(18px)]"><DoorOpen size={13} />Вход и reception</div></motion.div><Floating className="right-5 top-5" title="Свободно сегодня" /></div></div>;
+  return (
+    <div className="flex h-full flex-col overflow-hidden rounded-[30px] border border-white/30 bg-terracotta">
+      <div className="flex items-center justify-between border-b border-white/30 px-5 py-3">
+        <div>
+          <h2 className="font-black text-white">Карта PadelPoint</h2>
+          <p className="mt-1 text-xs text-white/70">9 indoor-кортов · 500 MDL / час</p>
+        </div>
+        <div className="flex rounded-full bg-white/15 p-1">
+          <Mode active={viewMode === "map3d"} label="3D" icon={<Layers3 size={14} />} onClick={() => onModeChange("map3d")} />
+          <Mode active={viewMode === "plan2d"} label="План" icon={<Map size={14} />} onClick={() => onModeChange("plan2d")} />
+        </div>
+      </div>
+      <div className="relative flex-1 overflow-hidden bg-terracotta p-3 [perspective:1500px]">
+        <motion.div
+          animate={{ x: 0, rotateX: viewMode === "map3d" ? 34 : 0, rotateZ: viewMode === "map3d" ? -12 : 0, scale: viewMode === "map3d" ? .82 : .9 }}
+          transition={{ type: "spring", stiffness: 110, damping: 22 }}
+          onAnimationComplete={() => { if (viewMode === "plan2d" && selectedCourtId) onFlattenComplete(); }}
+          className="relative z-20 mx-auto aspect-[1.85] h-full max-w-full [transform-style:preserve-3d]"
+        >
+          <Building dimmed={Boolean(selectedCourtId)} />
+          <Columns dimmed={Boolean(selectedCourtId)} />
+          {courts.map((court) => (
+            <CourtZone key={court.id} court={court} selected={selectedCourtId === court.id} dimmed={Boolean(selectedCourtId && selectedCourtId !== court.id)} onSelect={onSelect} />
+          ))}
+          <div className="absolute bottom-[4%] left-[43%] flex items-center gap-2 rounded-full bg-white px-3 py-2 text-[9px] font-black uppercase tracking-wider text-primary shadow-lg [transform:translateZ(18px)]">
+            <DoorOpen size={13} />Вход и reception
+          </div>
+        </motion.div>
+        <Floating className="right-5 top-5" title="Свободно сегодня" />
+      </div>
+    </div>
+  );
 }
 
 function MobileCourtPlan({ courts, selectedCourtId, onSelect }: { courts: MapCourt[]; selectedCourtId: string | null; onSelect: (court: MapCourt) => void }) {
@@ -375,7 +406,7 @@ function MobileCourtPlan({ courts, selectedCourtId, onSelect }: { courts: MapCou
     .filter(Boolean) as MapCourt[];
 
   return (
-    <div className="h-full overflow-hidden rounded-[30px] border border-white/30 bg-terracotta p-1.5 md:hidden">
+    <div className="relative aspect-[1/1.71] w-full overflow-hidden rounded-[30px] border border-white/30 bg-terracotta p-1.5 md:hidden">
       <div className="relative h-full overflow-hidden rounded-[24px] bg-[#E9ECE7] p-1.5 shadow-inner">
         <div className="absolute inset-y-0 left-[51%] w-2 bg-terracotta" />
         <div className="absolute inset-y-0 right-[22%] w-px bg-primary/20" />
@@ -389,8 +420,8 @@ function MobileCourtPlan({ courts, selectedCourtId, onSelect }: { courts: MapCou
           Вход и reception
         </div>
 
-        <div className="relative z-10 grid h-full grid-cols-[52%_1fr] gap-2">
-          <div className="grid h-full grid-rows-6 gap-1.5 rounded-sm bg-white p-1.5 shadow-[0_8px_22px_rgba(17,24,39,.14)]">
+        <div className="relative z-10 grid h-full origin-center scale-[.98] grid-cols-[44%_1fr] gap-2">
+          <div className="flex h-full flex-col justify-start gap-2 rounded-sm bg-white p-1.5 shadow-[0_8px_22px_rgba(17,24,39,.14)]">
             {blueCourts.map((court) => (
               <MobileCourtTile key={court.id} court={court} selected={selectedCourtId === court.id} onSelect={onSelect} variant="blue" />
             ))}
@@ -403,7 +434,7 @@ function MobileCourtPlan({ courts, selectedCourtId, onSelect }: { courts: MapCou
                 <span key={index} className="self-center border-t-4 border-[#CBD0CB]" />
               ))}
             </div>
-            <div className="grid h-full grid-rows-3 items-center gap-5 py-12">
+            <div className="flex h-full flex-col justify-center gap-8 py-8 pl-9">
               {terracottaCourts.map((court) => (
                 <MobileCourtTile key={court.id} court={court} selected={selectedCourtId === court.id} onSelect={onSelect} variant="terracotta" />
               ))}
@@ -428,7 +459,7 @@ function MobileCourtTile({ court, selected, variant, onSelect }: { court: MapCou
       animate={{ opacity: 1, y: 0 }}
       whileTap={{ scale: 0.98 }}
       transition={{ type: "spring", stiffness: 260, damping: 24 }}
-      className={`relative h-full min-h-0 overflow-hidden border-[4px] border-white/95 p-1.5 text-left outline-none transition ${isTerracotta ? "aspect-[1.04/1] w-full place-self-center rounded-[8px]" : "w-full rounded-[7px]"} ${isTerracotta ? "bg-[#B95F42]" : "bg-[#1268B3]"} ${selected ? "ring-4 ring-lime" : "shadow-[0_7px_16px_rgba(17,24,39,.18)] active:ring-4 active:ring-lime/70"}`}
+      className={`relative min-h-0 overflow-hidden border-[4px] border-white/95 p-1.5 text-left outline-none transition ${isTerracotta ? "aspect-[1/1.15] w-full place-self-center rounded-[8px]" : "aspect-[1.55/1] w-full rounded-[7px]"} ${isTerracotta ? "bg-[#B95F42]" : "bg-[#1268B3]"} ${selected ? "ring-4 ring-lime" : "shadow-[0_7px_16px_rgba(17,24,39,.18)] active:ring-4 active:ring-lime/70"}`}
       aria-label={`Открыть расписание ${court.name}`}
     >
       <CourtLines />
@@ -438,15 +469,15 @@ function MobileCourtTile({ court, selected, variant, onSelect }: { court: MapCou
   );
 }
 
-function Building({ dimmed }: { dimmed: boolean }) { return <motion.div animate={{ opacity: dimmed ? .35 : 1 }} className="pointer-events-none absolute inset-0 [transform-style:preserve-3d]"><div className="absolute bottom-[3%] left-[3%] h-[20%] w-[94%] border border-[#c5c9c3] bg-[#E5E7E2] shadow-[0_20px_28px_rgba(62,68,70,.25)] [transform:translateZ(8px)]"><div className="absolute inset-x-[3%] top-[24%] flex justify-between">{Array.from({ length: 15 }, (_, i) => <i key={i} className="h-5 w-[4%] border border-[#aeb5b4] bg-[#d5e1e2]/75" />)}</div><div className="absolute inset-x-[2%] top-[-14%] border-t-2 border-[#78878b]/60" /></div><div className="absolute left-[8%] top-[43%] h-[35%] w-[82%] border border-[#bcc2c3] bg-[#dfe2de] shadow-lg [transform:translateZ(4px)]" /><div className="absolute left-[7%] top-[4%] h-[38%] w-[90%] border border-[#c8ccc5] bg-[#f4f5f2] shadow-xl [transform:translateZ(37px)]" /></motion.div>; }
+function Building({ dimmed }: { dimmed: boolean }) { return <motion.div animate={{ opacity: dimmed ? .35 : 1 }} className="pointer-events-none absolute inset-0 [transform-style:preserve-3d]"><div className="absolute bottom-[3%] left-[3%] h-[20%] w-[94%] border border-[#c5c9c3] bg-[#E5E7E2] shadow-[0_20px_28px_rgba(62,68,70,.25)] [transform:translateZ(8px)]"><div className="absolute inset-x-[3%] top-[24%] flex justify-between">{Array.from({ length: 15 }, (_, i) => <i key={i} className="h-5 w-[4%] border border-[#aeb5b4] bg-[#d5e1e2]/75" />)}</div><div className="absolute inset-x-[2%] top-[-14%] border-t-2 border-[#78878b]/60" /></div><div className="absolute left-[8%] top-[43%] h-[35%] w-[82%] border border-[#bcc2c3] bg-[#dfe2de] shadow-lg [transform:translateZ(4px)]" /><div className="absolute left-[7%] top-[4%] h-[38%] w-[93%] border border-[#c8ccc5] bg-[#f4f5f2] shadow-xl [transform:translateZ(37px)]" /></motion.div>; }
 function Columns({ dimmed }: { dimmed: boolean }) { return <motion.div animate={{ opacity: dimmed ? .35 : 1 }} className="pointer-events-none absolute inset-0 z-30">{[9,24,39,54,69,84,97].map((left) => <i key={left} className="absolute top-[1%] h-[78%] w-[1%] bg-gradient-to-r from-[#aeb3b1] via-white to-[#9ca3a1] shadow-md [transform:translateZ(62px)]" style={{ left: `${left}%` }} />)}<i className="absolute left-[7%] top-[1%] h-[2%] w-[91%] bg-[#c9cdca] [transform:translateZ(63px)]" /></motion.div>; }
 
 function CourtZone({ court, selected, dimmed, onSelect }: { court: MapCourt; selected: boolean; dimmed: boolean; onSelect: (court: MapCourt) => void }) {
   const [hovered, setHovered] = useState(false);
   const available = court.slots.filter((slot) => slot.status === "available").length;
   const tooltipBelow = court.color === "blue";
-  const depth = court.level === "upper" ? 64 : 28;
-  return <motion.button layoutId={`court-${court.id}`} type="button" onClick={() => onSelect(court)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onFocus={() => setHovered(true)} onBlur={() => setHovered(false)} aria-label={`Открыть расписание ${court.name}`} animate={{ opacity: dimmed ? .22 : 1, scale: selected ? 1.05 : 1, z: selected ? depth + 8 : depth }} whileHover={{ scale: 1.025 }} className={`absolute rounded-[2px] border-2 border-white/85 p-[3px] shadow-[0_10px_18px_rgba(38,46,50,.25)] outline-none ${hovered || selected ? "z-[100]" : "z-20"} ${court.color === "blue" ? "bg-[#1268B3]" : "bg-[#B95F42]"} ${selected ? "ring-4 ring-lime" : "hover:ring-4 hover:ring-white"}`} style={{ left: `${court.x}%`, top: `${court.y}%`, width: `${court.width}%`, height: `${court.height}%` }}><CourtLines /><span className={`absolute left-1.5 top-1.5 rounded-full px-1.5 py-1 text-[9px] font-black leading-none ${selected ? "bg-lime text-[#050505]" : "bg-[#050505] text-white"}`}>{court.label}</span><AnimatePresence>{hovered && <motion.span initial={{ opacity: 0, y: tooltipBelow ? 5 : -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`pointer-events-none absolute left-1/2 z-[140] w-40 -translate-x-1/2 rounded-2xl bg-[#050505] p-2.5 text-left text-white shadow-2xl ring-1 ring-white/10 ${tooltipBelow ? "top-[calc(100%+14px)]" : "bottom-[calc(100%+14px)]"}`}><b className="block text-[11px]">{court.name}</b><small className="mt-1 block text-[10px] text-white/60">Indoor · 500 MDL / час</small><span className="mt-2 block border-t border-white/10 pt-1.5 text-[10px] text-lime">{available} свободных слотов</span></motion.span>}</AnimatePresence></motion.button>;
+  const depth = 64;
+  return <motion.button layoutId={`court-${court.id}`} type="button" onClick={() => onSelect(court)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onFocus={() => setHovered(true)} onBlur={() => setHovered(false)} aria-label={`Открыть расписание ${court.name}`} animate={{ opacity: dimmed ? .22 : 1, scale: selected ? 1.05 : 1, z: hovered || selected ? depth + 80 : depth }} whileHover={{ scale: 1.025 }} className={`absolute rounded-[2px] border-2 border-white/85 p-[3px] shadow-[0_10px_18px_rgba(38,46,50,.25)] outline-none ${hovered || selected ? "z-[200]" : "z-20"} ${court.color === "blue" ? "bg-[#1268B3]" : "bg-[#B95F42]"} ${selected ? "ring-4 ring-lime" : "hover:ring-4 hover:ring-white"}`} style={{ left: `${court.x}%`, top: `${court.y}%`, width: `${court.width}%`, height: `${court.height}%` }}><CourtLines /><span className={`absolute left-1.5 top-1.5 rounded-full px-1.5 py-1 text-[9px] font-black leading-none ${selected ? "bg-lime text-[#050505]" : "bg-[#050505] text-white"}`}>{court.label}</span><AnimatePresence>{hovered && <motion.span initial={{ opacity: 0, y: tooltipBelow ? 5 : -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`pointer-events-none absolute left-1/2 z-[300] w-40 -translate-x-1/2 rounded-2xl bg-[#050505] p-2.5 text-left text-white shadow-2xl ring-1 ring-white/10 ${tooltipBelow ? "top-[calc(100%+14px)]" : "bottom-[calc(100%+14px)]"}`}><b className="block text-[11px]">{court.name}</b><small className="mt-1 block text-[10px] text-white/60">Indoor · 500 MDL / час</small><span className="mt-2 block border-t border-white/10 pt-1.5 text-[10px] text-lime">{available} свободных слотов</span></motion.span>}</AnimatePresence></motion.button>;
 }
 
 function CourtLines() { return <span className="pointer-events-none absolute inset-[7%] border-2 border-white/85"><i className="absolute inset-y-0 left-1/2 border-l-2 border-white/85" /><i className="absolute inset-x-0 top-1/2 border-t-2 border-white/85" /><i className="absolute inset-y-[23%] left-[25%] right-[25%] border-x border-white/85" /></span>; }

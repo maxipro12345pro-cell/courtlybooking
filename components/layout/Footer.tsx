@@ -16,7 +16,7 @@ export default function Footer() {
           <div className="grid gap-10 lg:grid-cols-[1.25fr_.9fr] lg:gap-16">
             <div>
               <img
-                src="/brand/padelpoint-logo.svg"
+                src="/brand/padelpoint-logo.jpg"
                 alt="PadelPoint"
                 className="h-20 w-20 rounded-full object-cover sm:h-24 sm:w-24"
               />
