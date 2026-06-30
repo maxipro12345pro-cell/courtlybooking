@@ -534,7 +534,7 @@ function MobileSummary({ court, times, halfExtension, customerComplete, depositM
 
 function MultiHourToggle({ enabled, onChange }: { enabled: boolean; onChange: (enabled: boolean) => void }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-lime bg-white px-3 py-2 text-[11px] font-black text-primary shadow-sm transition">
+    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-lime/80 bg-white px-3 py-2 text-[11px] font-black text-primary shadow-[0_0_0_1px_rgba(216,255,62,.2)] transition">
       <input type="checkbox" checked={enabled} onChange={(event) => onChange(event.target.checked)} className="h-4 w-4 accent-[#050505]" />
       Выбрать несколько часов
     </label>

@@ -109,7 +109,7 @@ export default function BookingClient({ initialDate }: { initialDate: string }) 
 
         <motion.div variants={reveal} transition={{ duration: .55, ease: [0.22, 1, 0.36, 1] }} className="mt-6 flex flex-wrap gap-2 text-xs font-bold text-primary/65">
           {['9 крытых кортов', '500 MDL / час', '60 минут', 'Оплата онлайн'].map((item) => (
-            <motion.span whileHover={{ y: -2 }} key={item} className="flex items-center gap-2 rounded-full border border-sand bg-white px-4 py-2"><Check size={13} className="text-terracotta" />{item}</motion.span>
+            <motion.span whileHover={{ y: -2 }} key={item} className="flex items-center gap-2 rounded-full border border-lime/70 bg-white px-4 py-2 shadow-[0_0_0_1px_rgba(216,255,62,.18)]"><Check size={13} className="text-terracotta" />{item}</motion.span>
           ))}
         </motion.div>
 
