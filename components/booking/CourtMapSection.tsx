@@ -338,7 +338,7 @@ export default function CourtMapSection({ date }: { date: string }) {
         <MultiHourToggle enabled={multiHour} onChange={toggleMultiHour} />
       </div>
       <div className="grid items-start gap-5 rounded-[38px] bg-terracotta p-3 shadow-soft sm:p-5 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className={`relative min-w-0 ${viewMode === "schedule" ? "h-[1180px] md:h-[620px]" : isMobileViewport ? "h-auto" : "h-[min(760px,calc(100svh-175px))] min-h-[640px] md:h-[620px]"}`}>
+        <div className={`relative min-w-0 ${viewMode === "schedule" ? (isMobileViewport ? "h-auto" : "h-[620px]") : isMobileViewport ? "h-auto" : "h-[min(760px,calc(100svh-175px))] min-h-[640px] md:h-[620px]"}`}>
           <AnimatePresence initial={false} mode="popLayout">
             {viewMode !== "schedule" ? (
               <motion.div key="map" className={isMobileViewport ? "relative" : "absolute inset-0"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -349,7 +349,7 @@ export default function CourtMapSection({ date }: { date: string }) {
                 )}
               </motion.div>
             ) : selectedCourt ? (
-              <motion.div key="schedule" className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div key="schedule" className={isMobileViewport ? "relative" : "absolute inset-0"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
                 <Schedule court={selectedCourt} selectedTimes={sortedSelectedTimes} halfExtension={halfExtension} multiHour={multiHour} customer={customer} formTouched={formTouched} onSelectTime={selectTime} onHalfExtensionChange={toggleHalfExtension} onPreviousFullHour={addPreviousFullHour} onNextFullHour={addNextFullHour} onBack={backToMap} onCustomerChange={updateCustomer} />
               </motion.div>
             ) : null}
@@ -480,7 +480,7 @@ function MobileCourtTile({ court, selected, variant, onSelect }: { court: MapCou
       animate={{ opacity: 1, y: 0 }}
       whileTap={{ scale: 0.98 }}
       transition={{ type: "spring", stiffness: 260, damping: 24 }}
-      className={`relative min-h-0 overflow-hidden border-[4px] border-white/95 p-1.5 text-left outline-none transition ${isTerracotta ? "aspect-[1/1.15] w-full place-self-center rounded-[8px]" : "aspect-[1.55/1] w-full rounded-[7px]"} ${isTerracotta ? "bg-[#B95F42]" : "bg-[#1268B3]"} ${selected ? "ring-4 ring-lime" : "shadow-[0_7px_16px_rgba(17,24,39,.18)] active:ring-4 active:ring-lime/70"}`}
+      className={`relative min-h-0 overflow-hidden border-[clamp(2px,0.75vw,4px)] border-white/95 p-[clamp(3px,1vw,6px)] text-left outline-none transition ${isTerracotta ? "aspect-[1/1.15] w-full place-self-center rounded-[8px]" : "aspect-[1.55/1] w-full rounded-[7px]"} ${isTerracotta ? "bg-[#B95F42]" : "bg-[#1268B3]"} ${selected ? "ring-4 ring-lime" : "shadow-[0_7px_16px_rgba(17,24,39,.18)] active:ring-4 active:ring-lime/70"}`}
       aria-label={`Открыть расписание ${court.name}`}
     >
       <CourtLines />
@@ -501,14 +501,14 @@ function CourtZone({ court, selected, dimmed, onSelect }: { court: MapCourt; sel
   return <motion.button layoutId={`court-${court.id}`} type="button" onClick={() => onSelect(court)} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onFocus={() => setHovered(true)} onBlur={() => setHovered(false)} aria-label={`Открыть расписание ${court.name}`} animate={{ opacity: dimmed ? .22 : 1, scale: selected ? 1.05 : 1, z: hovered || selected ? depth + 80 : depth }} whileHover={{ scale: 1.025 }} className={`absolute rounded-[2px] border-2 border-white/85 p-[3px] shadow-[0_10px_18px_rgba(38,46,50,.25)] outline-none ${hovered || selected ? "z-[200]" : "z-20"} ${court.color === "blue" ? "bg-[#1268B3]" : "bg-[#B95F42]"} ${selected ? "ring-4 ring-lime" : "hover:ring-4 hover:ring-white"}`} style={{ left: `${court.x}%`, top: `${court.y}%`, width: `${court.width}%`, height: `${court.height}%` }}><CourtLines /><span className={`absolute left-1.5 top-1.5 rounded-full px-1.5 py-1 text-[9px] font-black leading-none ${selected ? "bg-lime text-[#050505]" : "bg-[#050505] text-white"}`}>{court.label}</span><AnimatePresence>{hovered && <motion.span initial={{ opacity: 0, y: tooltipBelow ? 5 : -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className={`pointer-events-none absolute left-1/2 z-[300] w-40 -translate-x-1/2 rounded-2xl bg-[#050505] p-2.5 text-left text-white shadow-2xl ring-1 ring-white/10 ${tooltipBelow ? "top-[calc(100%+14px)]" : "bottom-[calc(100%+14px)]"}`}><b className="block text-[11px]">{court.name}</b><small className="mt-1 block text-[10px] text-white/60">Indoor · 500 MDL / час</small><span className="mt-2 block border-t border-white/10 pt-1.5 text-[10px] text-lime">{available} свободных слотов</span></motion.span>}</AnimatePresence></motion.button>;
 }
 
-function CourtLines() { return <span className="pointer-events-none absolute inset-[7%] border-2 border-white/85"><i className="absolute inset-y-0 left-1/2 border-l-2 border-white/85" /><i className="absolute inset-x-0 top-1/2 border-t-2 border-white/85" /><i className="absolute inset-y-[23%] left-[25%] right-[25%] border-x border-white/85" /></span>; }
+function CourtLines() { return <span className="pointer-events-none absolute inset-[7%] border-[clamp(1px,0.38vw,2px)] border-white/85"><i className="absolute inset-y-0 left-1/2 border-l-[clamp(1px,0.38vw,2px)] border-white/85" /><i className="absolute inset-x-0 top-1/2 border-t-[clamp(1px,0.38vw,2px)] border-white/85" /><i className="absolute inset-y-[23%] left-[25%] right-[25%] border-x-[clamp(1px,0.38vw,2px)] border-white/85" /></span>; }
 function Floating({ title, className }: { title: string; className: string }) { return <div className={`pointer-events-none absolute z-10 rounded-full bg-lime px-4 py-2 text-[11px] font-black text-[#050505] shadow-lg ${className}`}>{title}</div>; }
 function Mode({ active, label, icon, onClick }: { active: boolean; label: string; icon: React.ReactNode; onClick: () => void }) { return <button type="button" onClick={onClick} className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-[11px] font-black ${active ? "bg-lime text-[#050505]" : "text-white/75"}`}>{icon}{label}</button>; }
 
 function Schedule({ court, selectedTimes, halfExtension, multiHour, customer, formTouched, onSelectTime, onHalfExtensionChange, onPreviousFullHour, onNextFullHour, onBack, onCustomerChange }: { court: MapCourt; selectedTimes: string[]; halfExtension: HalfExtension; multiHour: boolean; customer: CustomerDetails; formTouched: boolean; onSelectTime: (time: string) => void; onHalfExtensionChange: (position: Exclude<HalfExtension, null>) => void; onPreviousFullHour: () => void; onNextFullHour: () => void; onBack: () => void; onCustomerChange: (field: keyof CustomerDetails, value: string | boolean) => void }) {
   const baseTime = !multiHour && selectedTimes.length === 1 ? selectedTimes[0] : null;
 
-  return <div className="h-full overflow-y-auto rounded-[30px] border border-sand bg-white shadow-soft"><div className="flex items-center gap-3 border-b border-sand p-5"><button type="button" onClick={onBack} aria-label="Вернуться к карте" className="grid h-10 w-10 place-items-center rounded-full bg-[#050505] text-white"><ArrowLeft size={18} /></button><motion.div layoutId={`court-${court.id}`} className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 border-white/80 ${court.color === "blue" ? "bg-[#1268B3]" : "bg-[#B95F42]"}`}><CourtLines /></motion.div><div><h3 className="font-black tracking-[-.03em] text-primary">{court.name}</h3><p className="mt-1 text-xs font-bold text-gray-400">Indoor · 500 MDL / час · +30 мин = 250 MDL</p></div></div><div className="p-5"><div className="mb-5"><h4 className="text-lg font-black tracking-[-.035em] text-primary">Выберите время</h4></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{court.slots.map((slot) => { const disabled = slot.status !== "available"; const selected = selectedTimes.includes(slot.time); const halfBefore = Boolean(baseTime && slot.time === previousHour(baseTime)); const halfAfter = Boolean(baseTime && slot.time === nextHour(baseTime)); if (halfBefore || halfAfter) return <HalfSlotButton key={slot.time} slot={slot} position={halfBefore ? "before" : "after"} active={halfExtension === (halfBefore ? "before" : "after")} disabled={!canUseHalfExtension(court, baseTime!, halfBefore ? "before" : "after")} onClick={onHalfExtensionChange} onFullHour={halfBefore ? onPreviousFullHour : onNextFullHour} />; return <button key={slot.time} type="button" disabled={disabled} onClick={() => onSelectTime(slot.time)} className={`min-h-[64px] rounded-2xl border px-3 py-2 text-left transition ${selected ? "border-[#050505] bg-lime text-[#050505] ring-2 ring-[#050505]" : disabled ? "cursor-not-allowed border-gray-100 bg-gray-100 text-gray-400" : "border-sand bg-white text-primary hover:border-terracotta"}`}><b className="block text-sm">{slot.time}</b><small className="mt-1 block font-bold">{selected ? (halfExtension ? `Выбрано · ${formatBookingRange(slot.time, halfExtension)}` : "Выбрано") : slot.status === "available" ? "500 MDL" : slot.status === "held" ? "Удерживается" : slot.status === "past" ? "Прошло" : "Занято"}</small></button>; })}</div>{selectedTimes.length > 0 && <div id="booking-customer-fields" className="mx-auto mt-6 max-w-[680px] rounded-[28px] border border-sand bg-white p-4 shadow-sm sm:p-5 xl:hidden"><CustomerFields customer={customer} formTouched={formTouched} onChange={onCustomerChange} /></div>}</div></div>;
+  return <div className="rounded-[30px] border border-sand bg-white shadow-soft xl:h-full xl:overflow-y-auto"><div className="flex items-center gap-3 border-b border-sand p-5"><button type="button" onClick={onBack} aria-label="Вернуться к карте" className="grid h-10 w-10 place-items-center rounded-full bg-[#050505] text-white"><ArrowLeft size={18} /></button><motion.div layoutId={`court-${court.id}`} className={`relative h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 border-white/80 ${court.color === "blue" ? "bg-[#1268B3]" : "bg-[#B95F42]"}`}><CourtLines /></motion.div><div><h3 className="font-black tracking-[-.03em] text-primary">{court.name}</h3><p className="mt-1 text-xs font-bold text-gray-400">Indoor · 500 MDL / час · +30 мин = 250 MDL</p></div></div><div className="p-5"><div className="mb-5"><h4 className="text-lg font-black tracking-[-.035em] text-primary">Выберите время</h4></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{court.slots.map((slot) => { const disabled = slot.status !== "available"; const selected = selectedTimes.includes(slot.time); const halfBefore = Boolean(baseTime && slot.time === previousHour(baseTime)); const halfAfter = Boolean(baseTime && slot.time === nextHour(baseTime)); if (halfBefore || halfAfter) return <HalfSlotButton key={slot.time} slot={slot} position={halfBefore ? "before" : "after"} active={halfExtension === (halfBefore ? "before" : "after")} disabled={!canUseHalfExtension(court, baseTime!, halfBefore ? "before" : "after")} onClick={onHalfExtensionChange} onFullHour={halfBefore ? onPreviousFullHour : onNextFullHour} />; return <button key={slot.time} type="button" disabled={disabled} onClick={() => onSelectTime(slot.time)} className={`min-h-[64px] rounded-2xl border px-3 py-2 text-left transition ${selected ? "border-[#050505] bg-lime text-[#050505] ring-2 ring-[#050505]" : disabled ? "cursor-not-allowed border-gray-100 bg-gray-100 text-gray-400" : "border-sand bg-white text-primary hover:border-terracotta"}`}><b className="block text-sm">{slot.time}</b><small className="mt-1 block font-bold">{selected ? (halfExtension ? `Выбрано · ${formatBookingRange(slot.time, halfExtension)}` : "Выбрано") : slot.status === "available" ? "500 MDL" : slot.status === "held" ? "Удерживается" : slot.status === "past" ? "Прошло" : "Занято"}</small></button>; })}</div>{selectedTimes.length > 0 && <div id="booking-customer-fields" className="mx-auto mt-6 max-w-[680px] rounded-[28px] border border-sand bg-white p-4 shadow-sm sm:p-5 xl:hidden"><CustomerFields customer={customer} formTouched={formTouched} onChange={onCustomerChange} /></div>}</div></div>;
 }
 
 function HalfSlotButton({ slot, position, active, disabled, onClick, onFullHour }: { slot: Slot; position: Exclude<HalfExtension, null>; active: boolean; disabled: boolean; onClick: (position: Exclude<HalfExtension, null>) => void; onFullHour?: () => void }) {
@@ -534,7 +534,7 @@ function MobileSummary({ court, times, halfExtension, customerComplete, depositM
 
 function MultiHourToggle({ enabled, onChange }: { enabled: boolean; onChange: (enabled: boolean) => void }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-sand bg-white px-3 py-2 text-[11px] font-black text-primary shadow-sm transition hover:border-terracotta">
+    <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border-2 border-lime bg-white px-3 py-2 text-[11px] font-black text-primary shadow-sm transition">
       <input type="checkbox" checked={enabled} onChange={(event) => onChange(event.target.checked)} className="h-4 w-4 accent-[#050505]" />
       Выбрать несколько часов
     </label>
@@ -588,6 +588,7 @@ function CustomerField({ label, value, placeholder, type = "text", inputMode, na
 
 function PhoneField({ value, invalid, hint, onChange }: { value: string; invalid: boolean; hint: string; onChange: (value: string) => void }) {
   const [country, setCountry] = useState<PhoneCountry>(() => (value ? detectPhoneCountry(value) : PHONE_COUNTRIES[0]));
+  const [countryMenuOpen, setCountryMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!value) return;
@@ -598,6 +599,7 @@ function PhoneField({ value, invalid, hint, onChange }: { value: string; invalid
   function handleCountryChange(code: string) {
     const next = PHONE_COUNTRIES.find((option) => option.code === code) ?? PHONE_COUNTRIES[0];
     setCountry(next);
+    setCountryMenuOpen(false);
     const currentTrimmed = value.trim();
     let localPart = "";
     if (currentTrimmed.startsWith(country.dial) && country.dial !== "+") {
@@ -626,15 +628,25 @@ function PhoneField({ value, invalid, hint, onChange }: { value: string; invalid
   return (
     <label className="block">
       <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wider text-primary/55">Номер телефона<span className="text-terracotta"> *</span></span>
-      <div className={`flex items-stretch overflow-hidden rounded-2xl border bg-white transition focus-within:border-terracotta ${invalid ? "border-red-300 ring-2 ring-red-100" : "border-sand"}`}>
-        <select value={country.code} onChange={(event) => handleCountryChange(event.target.value)} aria-label="Код страны" className="cursor-pointer appearance-none border-r border-sand bg-white pl-3 pr-2 text-sm font-bold text-primary outline-none">
-          {PHONE_COUNTRIES.map((option) => (
-            <option key={option.code} value={option.code}>{option.flag} {option.dial === "+" ? "+…" : option.dial}</option>
-          ))}
-        </select>
-        <input value={value} placeholder={country.example} type="tel" inputMode="tel" name="tel" autoComplete="tel" required onChange={(event) => handleInputChange(event.target.value)} className="min-w-0 flex-1 bg-white px-3 py-3 text-sm font-bold text-primary outline-none" />
+      <div className="relative">
+        <div className={`flex items-stretch overflow-hidden rounded-2xl border bg-white transition focus-within:border-terracotta ${invalid ? "border-red-300 ring-2 ring-red-100" : "border-sand"}`}>
+          <button type="button" onClick={() => setCountryMenuOpen((open) => !open)} aria-label="Код страны" className="grid w-12 shrink-0 place-items-center border-r border-sand bg-white outline-none transition hover:bg-canvas">
+            <img src={`/flags/${country.code.toLowerCase()}.svg`} alt={country.code} className="h-4 w-6 rounded-[3px] object-cover shadow-sm ring-1 ring-black/10" />
+          </button>
+          <input value={value} placeholder={country.example} type="tel" inputMode="tel" name="tel" autoComplete="tel" required onChange={(event) => handleInputChange(event.target.value)} className="min-w-0 flex-1 bg-white px-3 py-3 text-sm font-bold text-primary outline-none" />
+        </div>
+        {countryMenuOpen && (
+          <div className="absolute left-0 top-[calc(100%+6px)] z-50 overflow-hidden rounded-2xl border border-sand bg-white p-1 shadow-soft">
+            {PHONE_COUNTRIES.map((option) => (
+              <button key={option.code} type="button" onClick={() => handleCountryChange(option.code)} className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-black text-primary transition hover:bg-canvas ${option.code === country.code ? "bg-canvas" : ""}`}>
+                <img src={`/flags/${option.code.toLowerCase()}.svg`} alt={option.code} className="h-4 w-6 rounded-[3px] object-cover shadow-sm ring-1 ring-black/10" />
+                <span>{option.dial === "+" ? "+…" : option.dial}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      {invalid && hint && <span className="mt-1.5 block text-[10px] font-bold text-red-600">{hint}</span>}
+      {invalid && <span className="mt-1.5 block text-[10px] font-bold text-red-600">Неправильный формат телефона. Пример: {country.example}</span>}
     </label>
   );
 }
