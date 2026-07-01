@@ -279,11 +279,12 @@ export default function CourtMapSection({ date }: { date: string }) {
 
   async function continueBooking() {
     if (!selectedCourt || !selectedTime || !selectedHourCount) return;
-    setFormTouched(true);
     if (!customerComplete) {
+      setFormTouched(false);
       setShowCustomerModal(true);
       return;
     }
+    setFormTouched(true);
     setHolding(true);
     await new Promise((resolve) => window.setTimeout(resolve, 500));
     const bookingId = `bk_${Date.now().toString(36)}_${selectedCourt.id}`;
@@ -317,6 +318,11 @@ export default function CourtMapSection({ date }: { date: string }) {
     const existing = JSON.parse(localStorage.getItem("padelpoint:bookings") || "[]");
     localStorage.setItem("padelpoint:bookings", JSON.stringify([booking, ...existing.filter((item: { id: string }) => item.id !== bookingId)]));
     router.push(`/checkout?bookingId=${bookingId}`);
+  }
+
+  function submitCustomerModal() {
+    setFormTouched(true);
+    if (isCustomerComplete(customer)) void continueBooking();
   }
 
   return (
@@ -358,8 +364,8 @@ export default function CourtMapSection({ date }: { date: string }) {
                 <button type="button" onClick={closeCustomerModal} aria-label="Закрыть" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-canvas text-primary transition hover:bg-primary hover:text-white"><X size={18} /></button>
               </div>
               <CustomerFields customer={customer} formTouched={formTouched} onChange={updateCustomer} />
-              <button type="button" onClick={() => { setFormTouched(true); if (isCustomerComplete(customer)) closeCustomerModal(); }} className="mt-5 flex min-h-14 w-full items-center justify-between rounded-full bg-lime py-1.5 pl-6 pr-1.5 text-sm font-black text-[#050505]">
-                <span>Продолжить</span>
+              <button type="button" onClick={submitCustomerModal} className="mt-5 flex min-h-14 w-full items-center justify-between rounded-full bg-lime py-1.5 pl-6 pr-1.5 text-sm font-black text-[#050505]">
+                <span>Перейти к оплате</span>
                 <span className="grid h-11 w-11 place-items-center rounded-full bg-[#050505] text-white"><ArrowRight size={17} /></span>
               </button>
             </motion.section>
