@@ -198,10 +198,6 @@ export default function CourtMapSection({ date }: { date: string }) {
   }, []);
 
   useEffect(() => {
-    if (customerComplete) setShowCustomerModal(false);
-  }, [customerComplete]);
-
-  useEffect(() => {
     if (!showCustomerModal) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -350,7 +346,9 @@ export default function CourtMapSection({ date }: { date: string }) {
         </div>
         <BookingSummary court={selectedCourt} times={sortedSelectedTimes} halfExtension={halfExtension} date={date} customer={customer} customerComplete={customerComplete} formTouched={formTouched} totalPriceMdl={totalPriceMdl} depositMdl={depositMdl} remainingHours={remainingHours} remainingMdl={remainingMdl} loading={holding} onCustomerChange={updateCustomer} onContinue={continueBooking} />
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-sand bg-white p-4 pr-20 shadow-[0_-12px_40px_rgba(17,24,39,.12)] xl:hidden"><MobileSummary court={selectedCourt} times={sortedSelectedTimes} halfExtension={halfExtension} customerComplete={customerComplete} depositMdl={depositMdl} totalPriceMdl={totalPriceMdl} loading={holding} onContinue={continueBooking} /></div>
+      {selectedHourCount > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-sand bg-white p-4 pr-20 shadow-[0_-12px_40px_rgba(17,24,39,.12)] xl:hidden"><MobileSummary court={selectedCourt} times={sortedSelectedTimes} halfExtension={halfExtension} customerComplete={customerComplete} depositMdl={depositMdl} totalPriceMdl={totalPriceMdl} loading={holding} onContinue={continueBooking} /></div>
+      )}
       <AnimatePresence>
         {showCustomerModal && selectedCourt && selectedTime && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] overflow-y-auto bg-black/65 px-5 py-8 backdrop-blur-[5px]" onMouseDown={(event) => { if (event.currentTarget === event.target) closeCustomerModal(); }}>
