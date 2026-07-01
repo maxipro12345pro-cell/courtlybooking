@@ -113,7 +113,7 @@ export default function BookingClient({ initialDate }: { initialDate: string }) 
           ))}
         </motion.div>
 
-        <motion.div variants={reveal} transition={{ duration: .65, ease: [0.22, 1, 0.36, 1] }} className="mt-7"><CourtMapSection date={date} /></motion.div>
+        <motion.div variants={reveal} transition={{ duration: .65, ease: [0.22, 1, 0.36, 1] }} className="-mx-3 mt-7 sm:mx-0"><CourtMapSection date={date} /></motion.div>
       </motion.main>
 
       <AnimatePresence>
